@@ -5,6 +5,59 @@
 #include <stdint.h>
 #include "lbinchunk.h"
 #include "lerror.h"
+#include "opcode.h"
+void printOperands(uint32_t ins) {
+  switch (OpMode(ins)) {
+    case IABC:{
+      struct code_format * cm = ABC(ins);
+      int a,b,c;
+      a = cm->a;
+      b = cm->b;
+      c = cm->c;
+      printf("%d",a);
+      if(BMode(ins)  !=  OpArgN) {
+        if(b > 0xff)
+          printf(" %d",-1 - (b & (uint32_t)0xff));
+        else
+          printf(" %d",b);
+        if(CMode(ins)  !=  OpArgN) {
+          if(c > 0xff)
+            printf(" %d",-1 - (c & (uint32_t)0xff));
+          else
+            printf(" %d",c);
+        }
+      }
+      free(cm);
+    }
+          break;
+    case IABx:{
+      struct code_format * cm= ABx(ins);
+      int a,bx;
+      a = cm->a;
+      bx = cm->bx;
+      printf("%d",a);
+      if(BMode(ins)  ==  OpArgK)
+        printf(" %d", -1 - bx);
+      else
+        printf(" %d",bx);
+      free(cm);
+    }
+          break;
+    case IAsBx:{
+      struct code_format * cm = AsBx(ins);
+      printf("%d %d",cm->a,cm->bx);
+      free(cm);
+    }
+          break;
+    case IAx:{
+      struct code_format *cm = Ax(ins);
+      printf("%d", -1  -  cm->ax);
+      free(cm);
+    }
+          break;
+  }
+  printf("\n");
+}
 void printHeader(Prototype *f) {
   char *functype="main";
   char varargFlag;
@@ -27,7 +80,8 @@ void printCode(Prototype *f) {
         panic(OOM);
       sprintf(line,"%d",f->line_info[i]);
     }
-    printf("\t%d\t[%s]\t0x%08x\n",i + 1,line,f->code[i]);
+    printf("\t%d\t[%s]\t%-10s ",i + 1,line,OpName(f->code[i]));
+    printOperands(f->code[i]);
     if(&t != line)
       free(line);
   }
@@ -83,6 +137,7 @@ void list(Prototype * f) {
   for(uint32_t i = 0;i < f->protos_size;i++)
     list(f->protos[i]);
 }
+
 int main(int argc,char *argv[]) {
   if(argc != 2)
     exit(1);
