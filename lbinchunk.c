@@ -34,6 +34,7 @@ uint8_t * read_bytes(FILE *fp,uint64_t n) {
   return buf;
 }
 char * read_string(FILE *fp) {
+  //
   uint8_t size = read_byte(fp);
   if(size == 0)
     return NULL;
@@ -44,6 +45,7 @@ char * read_string(FILE *fp) {
   return read_bytes(fp,size - 1);
 }
 void check_header(FILE *fp) {
+  //Check header
   if(strcmp(read_bytes(fp,4),LUA_SIGNATURE) != 0) {
     panic("not a precompiled chunk");
   } else if(read_byte(fp) != LUAC_VERSION) {
@@ -69,6 +71,7 @@ void check_header(FILE *fp) {
   }
 }
 Prototype * read_proto(FILE *fp,char *parent_src) {
+  //Get function prototype
   char * source = read_string(fp);
   if(source == NULL || strlen(source) == 0) {
     source = parent_src;
@@ -92,6 +95,7 @@ Prototype * read_proto(FILE *fp,char *parent_src) {
   return ret;
 }
 Prototype ** read_protos(FILE *fp,char * parent_src,uint32_t  *size) {
+  //Get the subfunction prototype table
   *size = read_uint32(fp);
   if(*size == 0)
     return NULL;
@@ -109,6 +113,7 @@ Prototype * Undump(FILE *fp) {
   return read_proto(fp,"");
 }
 uint32_t *read_code(FILE *fp,uint32_t  *size) {
+  //Read instruction list
   *size = read_uint32(fp);
   uint32_t *code = (uint32_t *)malloc(sizeof(uint32_t)* *size);
   if(code == NULL)
@@ -119,6 +124,7 @@ uint32_t *read_code(FILE *fp,uint32_t  *size) {
   return code;
 }
 Type * read_constants(FILE *fp,uint32_t * len) {
+  //Read constant table
   *len = read_uint32(fp);
   if(*len == 0)
     return NULL;
@@ -132,6 +138,7 @@ Type * read_constants(FILE *fp,uint32_t * len) {
   return constants;
 }
 Type read_constant(FILE *fp) {
+  //Get a constant
   Type type = {0,NULL};
   uint8_t t = read_byte(fp);
   switch(t) {
@@ -170,6 +177,7 @@ Type read_constant(FILE *fp) {
   return type;
 }
 Upvalue * read_upvalues(FILE *fp,uint32_t  *len) {
+  //Read the Upvalue table
   *len = read_uint32(fp);
   Upvalue *upvalues = (Upvalue *)malloc(sizeof(Upvalue) * *len);
   if(upvalues == NULL)
@@ -181,15 +189,6 @@ Upvalue * read_upvalues(FILE *fp,uint32_t  *len) {
   return upvalues;
 }
 
-Prototype ** read_prototype(FILE *fp,char *parent_src) {
-  uint32_t size = read_uint32(fp);
-  Prototype ** protos = (Prototype **)malloc(sizeof(Prototype *)*size);
-  if(protos == NULL)
-    panic(OOM);
-  for(uint32_t i = 0;i < size;i++)
-    protos[i] = read_proto(fp,parent_src);
-  return protos;
-}
 uint32_t * read_line_info(FILE *fp,uint32_t * len) {
   *len = read_uint32(fp);
   uint32_t * lineinfo = (uint32_t *)malloc(sizeof(uint32_t *)* (*len));
