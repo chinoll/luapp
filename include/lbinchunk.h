@@ -22,7 +22,6 @@
 #define TAG_INTEGER 0x13
 #define TAG_SHORT_STR 0x04
 #define TAG_LONG_STR 0x14
-#define OOM "Out of memory"
 typedef struct __type {
   uint8_t type;
   void * data;

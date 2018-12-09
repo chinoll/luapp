@@ -70,7 +70,7 @@ void check_header(FILE *fp) {
 }
 Prototype * read_proto(FILE *fp,char *parent_src) {
   char * source = read_string(fp);
-  if(strlen(source) == 0) {
+  if(source == NULL || strlen(source) == 0) {
     source = parent_src;
   }
   Prototype * ret = (Prototype *)malloc(sizeof(Prototype));
