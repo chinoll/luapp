@@ -23,7 +23,7 @@
 #define TAG_SHORT_STR 0x04
 #define TAG_LONG_STR 0x14
 typedef struct __type {
-  uint8_t type;
+  int type;
   void * data;
 } Type;
 
@@ -69,6 +69,7 @@ typedef struct __prototype {
     LocVar *loc_vars;
     uint32_t loc_vars_len;
     char ** upvalue_names;
+    uint32_t upvalue_names_len;
 
 } Prototype;
 typedef struct __binChunk {
@@ -76,6 +77,7 @@ typedef struct __binChunk {
     uint8_t size_upvalues;
     Prototype *main_func;
 } BinChunk;
+void freeBinChunk(BinChunk * bin);
 #define read_byte(fp) (char)fgetc(fp)
 uint32_t read_uint32(FILE *fp);
 uint64_t read_uint64(FILE * fp);
@@ -94,5 +96,5 @@ Upvalue * read_upvalues(FILE * fp,uint32_t *len);
 Prototype ** read_protos(FILE * fp,char *parent_src,uint32_t *size);
 uint32_t * read_line_info(FILE * fp,uint32_t *len);
 LocVar * read_locvars(FILE * fp,uint32_t *len);
-char ** read_upvalue_names(FILE *fp);
+char ** read_upvalue_names(FILE *fp,uint32_t *size);
 #endif
