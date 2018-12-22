@@ -34,7 +34,6 @@ uint8_t * read_bytes(FILE *fp,uint64_t n) {
   return buf;
 }
 char * read_string(FILE *fp) {
-  //
   uint8_t size = read_byte(fp);
   if(size == 0)
     return NULL;
@@ -46,13 +45,14 @@ char * read_string(FILE *fp) {
 }
 void check_header(FILE *fp) {
   //Check header
-  if(strcmp(read_bytes(fp,4),LUA_SIGNATURE) != 0) {
+  char *a,*b;
+  if(strcmp((a = read_bytes(fp,4)),LUA_SIGNATURE) != 0) {
     panic("not a precompiled chunk");
   } else if(read_byte(fp) != LUAC_VERSION) {
     panic("version mismatch!");
   } else if(read_byte(fp) != LUAC_FORMAT) {
     panic("format mismatch!");
-  } else if(strcmp(read_bytes(fp,6),LUAC_DATA)) {
+  } else if(strcmp((b = read_bytes(fp,6)),LUAC_DATA)) {
     panic("corrupted!");
   } else if(read_byte(fp) != CINT_SIZE) {
     panic("int size mismatch!");
@@ -69,6 +69,8 @@ void check_header(FILE *fp) {
   } else if(read_lua_number(fp) != LUAC_NUM){
     panic("float format mismatch!");
   }
+  free(a);
+  free(b);
 }
 Prototype * read_proto(FILE *fp,char *parent_src) {
   //Get function prototype
@@ -91,7 +93,7 @@ Prototype * read_proto(FILE *fp,char *parent_src) {
   ret->protos = read_protos(fp,source,&ret->protos_size);
   ret->line_info = read_line_info(fp,&ret->line_info_len);
   ret->loc_vars = read_locvars(fp,&ret->loc_vars_len);
-  ret->upvalue_names = read_upvalue_names(fp);
+  ret->upvalue_names = read_upvalue_names(fp,&ret->upvalue_names_len);
   return ret;
 }
 Prototype ** read_protos(FILE *fp,char * parent_src,uint32_t  *size) {
@@ -210,13 +212,51 @@ LocVar * read_locvars(FILE *fp,uint32_t  *len) {
   }
   return locvars;
 }
-char ** read_upvalue_names(FILE *fp) {
-  uint32_t size = read_uint32(fp);
-  char ** names = (char **)malloc(sizeof(char *) * size);
+char ** read_upvalue_names(FILE *fp,uint32_t *size) {
+  *size = read_uint32(fp);
+  char ** names = (char **)malloc(sizeof(char *) * (*size));
   if(names == NULL)
     panic(OOM);
-  for(uint32_t i = 0;i < size;i++)
+  for(uint32_t i = 0;i < *size;i++)
     names[i] = read_string(fp);
   return names;
 
+}
+void freeConstants(Type * constant) {
+  switch(constant->type) {
+      case TAG_NIL:
+      case TAG_INTEGER:
+        break;
+      default:
+        free(constant->data);
+        break;
+  }
+}
+void freeLocVars(LocVar * var) {
+  free(var->var_name);
+}
+#define freeUpvalueName(p) free(p)
+
+void freeProtoType(Prototype * proto,char * source) {
+  char *s;
+  if(source != proto->source) {
+    s = proto->source;
+    free(proto->source);
+  }
+  free(proto->code);
+  free(proto->line_info);
+  free(proto->upvalues);
+  for(uint64_t i = 0;i < proto->constants_len;i++)
+    freeConstants(proto->constants + i);
+  for(uint64_t i = 0;i < proto->loc_vars_len;i++)
+    freeLocVars(proto->loc_vars + i);
+  for(uint64_t i = 0;i < proto->protos_size;i++)
+    freeProtoType(proto->protos[i],source);
+  for(uint64_t i = 0;i < proto->upvalue_names_len;i++)
+    freeUpvalueName(proto->upvalue_names[i]);
+  free(proto->protos);
+  free(proto->upvalue_names);
+  free(proto->loc_vars);
+  free(proto->constants);
+  free(proto);
 }
