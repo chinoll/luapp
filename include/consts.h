@@ -1,0 +1,18 @@
+
+#ifndef LUAPP_CONSTS_H
+
+#define LUAPP_CONSTS_H
+
+#define LUAPP_TNONE -1
+#define LUAPP_TNIL 0
+#define LUAPP_TBOOLEAN 1
+#define LUAPP_TLIGHTUSERDATA 2
+#define LUAPP_TINT 3
+#define LUAPP_TFLOAT 4
+#define LUAPP_TSTRING 5
+#define LUAPP_TTABLE 6
+#define LUAPP_TFUNCTION 7
+#define LUAPP_TUSERDATA 8
+#define LUAPP_TTHREAD 9
+
+#endif //LUAPP_CONSTS_H
