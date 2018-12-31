@@ -4,6 +4,7 @@
 #include <stdio.h>
 #define panic(str) \
 do {\
+    fflush(stdout); \
     fprintf(stderr,"%s:%d:%s\n",__FILE__,__LINE__,str);\
     exit(1);    \
 } while(0)
