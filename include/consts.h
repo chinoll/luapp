@@ -14,5 +14,26 @@
 #define LUAPP_TFUNCTION 7
 #define LUAPP_TUSERDATA 8
 #define LUAPP_TTHREAD 9
+enum {  // 算术和按位运算符
+    LUAPP_OPADD,        // +
+    LUAPP_OPSUB,        // -
+    LUAPP_OPMUL,       // *
+    LUAPP_OPMOD,      // %
+    LUAPP_OPPOW,      // ^
+    LUAPP_OPDIV,        // /
+    LUAPP_OPIDIV,       // //
+    LUAPP_OPBAND,    // &
+    LUAPP_OPBOR,      // |
+    LUAPP_OPBXOR,   // ~
+    LUAPP_OPSHL,      // <<
+    LUAPP_OPSHR,      // >>
+    LUAPP_OPNUM,    // - (unary minus)
+    LUAPP_OPBNOT    // ~
+}Op;
+enum {  //比较运算符
+    LUAPP_OPEQ, // ==
+    LUAPP_OPLT, // <
+    LUAPP_OPLE     // <=
+} Comp;
 
 #endif //LUAPP_CONSTS_H
