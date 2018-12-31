@@ -15,6 +15,7 @@ LuaValue * newLuaValue(int type,void * data) {
         panic(OOM);
     val->type = type;
     val->data = data;
+    val->convertStatus = false;
     return val;
 }
 void freeLuaValue(LuaValue * val) {
