@@ -9,6 +9,8 @@
 #include "consts.h"
 #include "lmath.h"
 #include "convert.h"
+#include "lbinchunk.h"
+
 operator operators[] = {//算术运算函数
         {iadd,fadd},
         {isub,fsub},
@@ -31,11 +33,15 @@ static bool __eq(LuaValue *a,LuaValue *b);
 static bool __lt(LuaValue *a,LuaValue *b);
 static bool __le(LuaValue *a,LuaValue *b);
 
-LuaState * newLuaState(void) {
-    LuaState * state = malloc(sizeof(LuaState));
+LuaState * newLuaState(uint64_t stacksize,Prototype *prototype) {
+    LuaState * state = (LuaState *)malloc(sizeof(LuaState));
     if(state == NULL)
         panic(OOM);
-    state->stack = newLuaStack(20);
+    
+    state->stack = newLuaStack(stacksize);
+    state->prototype = prototype;
+    state->pc = 0;
+
     return state;
 }
 void freeLuaState(LuaState * state) {
@@ -105,6 +111,10 @@ void push_string(LuaState * state,char * s) {
 void replace(LuaState * state,int64_t idx) {
     //将栈顶的值弹出，然后写入指定位置
     LuaValue * val = pop(state->stack);
+    uint64_t top = state->stack->top;
+
+    if(top < idx && top < state->stack->stack_len)
+        set_top(state,state->stack->top + 1);
     set(state->stack,idx,val);
     freeLuaValue(val);
 }
@@ -229,7 +239,7 @@ void Arith(LuaState * state,ArithOp op) {
     //执行算术和按位运算,将结果推入栈顶
     LuaValue *a,*b,*res;
     b = pop(state->stack);
-    if(op != LUAPP_OPNUM && op != LUAPP_OPBNOT)
+    if(op != LUAPP_OPUNM && op != LUAPP_OPBNOT)
         a = pop(state->stack);
     else    //遇到单目运算符的情况
         a = b;
@@ -246,7 +256,7 @@ void Arith(LuaState * state,ArithOp op) {
             break;
     }
     freeLuaValue(b);
-    if(op != LUAPP_OPNUM && op != LUAPP_OPBNOT) {
+    if(op != LUAPP_OPUNM && op != LUAPP_OPBNOT) {
         switch (a->type) {
             case LUAPP_TFLOAT:
             case LUAPP_TSTRING:
@@ -258,7 +268,7 @@ void Arith(LuaState * state,ArithOp op) {
 }
 static LuaValue * __arith(LuaValue *a,LuaValue *b,operator op) {
     //进行实际的算术运算，并返回结果
-    if(a == NULL || b == NULL || a->data == NULL || b->data == NULL)
+    if(a == NULL || b == NULL)
         return NULL;
     int64_t ires;
     double fres;
@@ -360,7 +370,6 @@ bool __eq(LuaValue *a,LuaValue *b) {
             if(b->type != LUAPP_TINT && b->type != LUAPP_TFLOAT)
                 return false;
             LuaValue *val = ConvertToInt(b);
-            printf("%d %d",a->data,val->data);
             bool b = (int64_t)val->data == (int64_t)a->data;
             freeLuaValue(val);
             return b;
@@ -429,7 +438,7 @@ bool __le(LuaValue *a,LuaValue *b) {
             if(b->type != LUAPP_TINT && b->type != LUAPP_TFLOAT)
                 return false;
             LuaValue *val = ConvertToInt(b);
-            bool b = (int64_t)val->data <= (int64_t)a->data;
+            bool b =  (int64_t)a->data <= (int64_t)val->data;
             freeLuaValue(val);
             return b;
         }
@@ -457,7 +466,7 @@ void Len(LuaState * state,int64_t idx) {
     freeLuaValue(res);
 }
 
-void Concat(LuaState * state,int64_t n) {
+void Concat(LuaState * state,int64_t n,int64_t b) {
     //从栈顶弹出n个值，对值进行拼接，把结果推入栈顶
     if(n == 0) {
         LuaValue * val = newLuaValue(LUAPP_TSTRING,"");
@@ -465,15 +474,16 @@ void Concat(LuaState * state,int64_t n) {
         freeLuaValue(val);
     } else if(n >= 2) {
         for(int64_t i = 1;i < n;i++) {
-            if(isString(state,-1) && isString(state,-2)) {
+            if(isString(state,b) && isString(state,b + 1)) {
                 char *str1,*str2;
-                str1 = to_string(state,-1);
-                str2 = to_string(state,-2);
+                str1 = to_string(state,b);
+                str2 = to_string(state,b + 1);
                 char * str = malloc(sizeof(char)*strlen(str1) + sizeof(char)*strlen(str2));
                 if(str == NULL)
                     panic(OOM);
-                strcpy(str,str2);
-                strcpy(str + strlen(str2),str1);
+
+                strcpy(str,str1);
+                strcpy(str + strlen(str1),str2);
                 freeLuaValue(pop(state->stack));
                 freeLuaValue(pop(state->stack));
                 free(str1);

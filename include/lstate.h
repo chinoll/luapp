@@ -6,18 +6,25 @@
 #include <math.h>
 #include "lstack.h"
 #include "consts.h"
-
+#include "lbinchunk.h"
+#include "lerror.h"
 typedef int64_t ArithOp;        //按位和算术运算符
 typedef int64_t CompareOp; //比较运算符
 
+#define DefaultStackSize (20)
+
 typedef struct __lua_state {
     LuaStack * stack;
+    Prototype *prototype;
+    uint64_t pc;
 } LuaState;
-LuaState * newLuaState(void);
+
+LuaState * newLuaState(uint64_t stacksize, Prototype *prototype);
 void freeLuaState(LuaState * state);
 static inline uint64_t get_top(LuaState * state) {
     return state->stack->top;
 }
+
 void popN(LuaState * state,uint64_t n);
 void copy_value(LuaState * state,int64_t fromIdx,int64_t toIdx);
 void push_value(LuaState * state,int64_t idx);
@@ -53,15 +60,66 @@ char * to_string(LuaState * state,int64_t idx);
 void Arith(LuaState * state,ArithOp op);
 bool Compare(LuaState * state,int64_t idx1,int64_t idx2,CompareOp op);
 void Len(LuaState * state,int64_t idx);
-void Concat(LuaState * state,int64_t n);
+void Concat(LuaState * state,int64_t n,int64_t b);
 
+static inline uint64_t getPC(LuaState *state) {
+    return state->pc;
+}
+
+static inline void addPC(LuaState *state,int64_t n) {
+    state->pc += n;
+}
+
+static inline uint32_t fetch(LuaState *state) {
+
+    //取指函数
+    //根据PC索引从指令表里取出当前指令，再将PC加1
+
+    uint32_t i = state->prototype->code[state->pc];
+    state->pc++;
+    return i;
+}
+
+static inline void getConst(LuaState *state,int32_t idx) {
+
+    //根据索引从常量表里，取出常量值，将其推入栈顶
+    Type t = state->prototype->constants[idx];
+    switch(t.type) {
+        case TAG_NIL:
+            push_nil(state);
+            break;
+        case TAG_BOOLEAN:
+            push_bool(state,(bool)t.data);
+            break;
+        case TAG_INTEGER:
+            push_int(state,(int64_t)t.data);
+            break;
+        case TAG_LONG_STR:
+        case TAG_SHORT_STR:
+            push_string(state,(char *)t.data);
+            break;
+        case TAG_NUMBER:
+            push_num(state,(*(double *)t.data));
+            break;
+        default:
+            panic("Error!");
+            break;
+    }
+}
+
+static inline void getRK(LuaState *state,int32_t rk) {
+
+    //将某个常量推入栈顶，或者将某个索引处的栈值推入栈顶
+    if(rk > 0xff) { //constant
+        getConst(state, rk & 0xff);
+    } else {    //register
+        push_value(state,rk + 1);
+    }
+}
 
 typedef struct __operator {
   int64_t (*intFunc)(int64_t,int64_t);
   double (*floatFunc)(double,double);
 } operator;
-
-
-
 
 #endif //LUAPP_LSTATE_H

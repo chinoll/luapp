@@ -49,7 +49,7 @@ void freeLuaStack(LuaStack * stack) {
     free(stack->slots);
     free(stack);
 }
-void check(LuaStack * stack,uint64_t n) {
+void checkStack (LuaStack * stack,uint64_t n) {
     /*
      * 检查栈中的空间是否还可以推入至少n个值,如不满足该条件
      * 则对slots进行扩容
@@ -69,6 +69,7 @@ void check(LuaStack * stack,uint64_t n) {
 }
 void push (LuaStack * stack,LuaValue val) {
     if (stack->top == stack->stack_len) {
+        //checkStack(stack,10);
         panic("stack overflow!");
     }
     stack->slots[stack->top] = val;

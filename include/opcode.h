@@ -7,8 +7,10 @@
 #define IAsBx 2
 #define IAx   3
 
-#define MAXARG_Bx ((uint32_t)1<<18 - 1)
-#define MAXARG_sBx (MAXARG_Bx >> 1)
+#define MAXARG_Bx (((uint32_t)1<<18) - 1)
+#define MAXARG_sBx ((MAXARG_Bx )>> 1)
+#define get_opcode(c) ((c) & (uint32_t)0x3f)
+
 enum {
     //VM instruction
   OP_MOVE,
@@ -36,7 +38,7 @@ enum {
   OP_BXOR,
   OP_SHL,
   OP_SHR,
-  OP_NUM,
+  OP_UNM,
   OP_BNOT,
   OP_NOT,
   OP_LEN,
@@ -59,29 +61,8 @@ enum {
   OP_VARARG,
   OP_EXTRAARG
 };
-typedef enum OpArg {
-    //Operand type
-  OpArgN,
-  OpArgU,
-  OpArgR,
-  OpArgK
-} OpArg;
-typedef struct opcode {
-  char testFlag;
-  char setAFlag;
-  OpArg argBMode;
-  OpArg argCMode;
-  char opMode;
-  char * name;  //code name
-} opcode_struct;
-#define get_opcode(c) ((c) & (uint32_t)0x3f)
 
-extern const opcode_struct opcodes[];
-#define OpName(ins) opcodes[get_opcode(ins)].name
-#define OpMode(ins) opcodes[get_opcode(ins)].opMode
-#define BMode(ins)  opcodes[get_opcode(ins)].argBMode
-#define CMode(ins) opcodes[get_opcode(ins)].argCMode
-
+typedef uint32_t instruction;
 
 struct code_format {
  /*
@@ -100,12 +81,10 @@ struct code_format {
     };
     int32_t c;
 };
+
 //Get instrucion encoding format
-struct code_format * ABC(uint32_t ins);
-struct code_format * ABx(uint32_t ins);
-struct code_format * AsBx(uint32_t ins);
-struct code_format * Ax(uint32_t ins);
-
-
-
+struct code_format * ABC(instruction ins);
+struct code_format * ABx(instruction ins);
+struct code_format * AsBx(instruction ins);
+struct code_format * Ax(instruction ins);
 #endif

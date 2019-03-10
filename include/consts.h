@@ -27,7 +27,7 @@ enum {  // 算术和按位运算符
     LUAPP_OPBXOR,   // ~
     LUAPP_OPSHL,      // <<
     LUAPP_OPSHR,      // >>
-    LUAPP_OPNUM,    // - (unary minus)
+    LUAPP_OPUNM,    // - (unary minus)
     LUAPP_OPBNOT    // ~
 }Op;
 enum {  //比较运算符

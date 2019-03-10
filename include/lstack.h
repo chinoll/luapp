@@ -15,7 +15,7 @@ LuaValue * newLuaValue(int type,void * data);
 void freeLuaValue(LuaValue * val);
 LuaStack * newLuaStack(uint64_t size);
 void freeLuaStack(LuaStack * stack);
-void check(LuaStack *stack,uint64_t n);
+void checkStack(LuaStack *stack,uint64_t n);
 void push(LuaStack *stack,LuaValue val);
 LuaValue * pop(LuaStack * stack);
 uint64_t absIndex(LuaStack *stack,int64_t idx);

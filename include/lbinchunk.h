@@ -77,6 +77,7 @@ typedef struct __binChunk {
     uint8_t size_upvalues;
     Prototype *main_func;
 } BinChunk;
+
 void freeBinChunk(BinChunk * bin);
 #define read_byte(fp) (char)fgetc(fp)
 uint32_t read_uint32(FILE *fp);

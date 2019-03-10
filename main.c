@@ -8,7 +8,10 @@
 #include "lerror.h"
 #include "opcode.h"
 #include "lstate.h"
+#include "lvm.h"
+#include "inst.h"
 
+int i = 1;
 void printStack(LuaState * state) {
     uint64_t top = get_top(state);
     for(uint64_t i = 1;i <= top;i++) {
@@ -36,24 +39,31 @@ void printStack(LuaState * state) {
     }
     printf("\n");
 }
+void LuaMain(Prototype *proto) {
+    uint32_t nregs = proto->max_stack_size;
+    LuaVM *vm = NewLuaVM(nregs + 8,proto);
+    set_top(&vm->state,nregs);
+    while(true) {
+        printf("%d ",i);
+        if(i == 100)
+            printf("yes");
+        uint64_t pc = getPC(&vm->state);
+        instruction inst = fetch(&vm->state);
+        if (get_opcode(inst) != OP_RETURN) {
+            ExecuteInstruction(vm, inst);
+            printf("[%d] %s ", pc + 1, codes[get_opcode(inst)].name);
+            printStack(&vm->state);
+            i++;
+        } else {
+            break;
+        }
+    }
+}
+
 int main(int argc,char *argv[]) {
-    LuaState * state = newLuaState();
-    push_int(state,1);
-    push_string(state,"2.0");
-    push_string(state,"3.0");
-    push_num(state,4.0);
-    printStack(state);
-    Arith(state,LUAPP_OPADD); printStack(state);
-    Arith(state,LUAPP_OPBNOT); printStack(state);
-    Arith(state,LUAPP_OPMUL);   printStack(state);
-    LuaValue *val = pop(state->stack);
-    freeLuaValue(val);
-    printStack(state);
-    push_string(state,"Hello,Lua!");    printStack(state);
-    push_int(state,1002);   printStack(state);
-    Len(state,2);   printStack(state);
-    Concat(state,3);  printStack(state);
-    push_bool(state,Compare(state,1,2,LUAPP_OPEQ));
-    printStack(state);
-    freeLuaState(state);
+    if(argc < 2)
+        exit(1);
+    FILE *fp = fopen(argv[1],"rb");
+    Prototype *proto = Undump(fp);
+    LuaMain(proto);
 }
