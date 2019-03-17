@@ -15,6 +15,7 @@ struct code_format * ABC(instruction ins) {
     cm->a = ins >> 6 & (uint32_t)0xff;
     cm->c  = ins >> 14 & (uint32_t)0x1ff;
     cm->b = ins >> 23 & (uint32_t)0x1ff;
+    free(cm);
     return cm;
 }
 struct code_format * ABx(instruction ins) {

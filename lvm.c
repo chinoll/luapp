@@ -67,7 +67,9 @@ LuaVM *NewLuaVM(uint64_t stacksize,Prototype *prototype) {
 
     return vm;
 }
-
+void freeLuaVM(LuaVM *vm) {
+    freeLuaState((LuaState *)vm);
+}
 void ExecuteInstruction(LuaVM *vm,instruction i) {
     void (*action)(instruction i,LuaVM *) = codes[get_opcode(i)].action;
     if(action != NULL)

@@ -238,6 +238,7 @@ void freeLocVars(LocVar * var) {
 #define freeUpvalueName(p) free(p)
 
 void freeProtoType(Prototype * proto,char * source) {
+  //释放Prototype结构体
   char *s;
   if(source != proto->source) {
     s = proto->source;

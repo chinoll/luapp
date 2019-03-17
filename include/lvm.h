@@ -35,5 +35,6 @@ typedef struct code {
 extern const code_struct codes[];
 
 LuaVM *NewLuaVM(uint64_t stacksize, Prototype *prototype);
+void freeLuaVM(LuaVM *vm);
 void ExecuteInstruction(LuaVM *vm,instruction i);
 #endif //LUAPP_LVM_H

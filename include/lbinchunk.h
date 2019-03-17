@@ -98,4 +98,5 @@ Prototype ** read_protos(FILE * fp,char *parent_src,uint32_t *size);
 uint32_t * read_line_info(FILE * fp,uint32_t *len);
 LocVar * read_locvars(FILE * fp,uint32_t *len);
 char ** read_upvalue_names(FILE *fp,uint32_t *size);
+void freeProtoType(Prototype * proto,char * source);
 #endif
