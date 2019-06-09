@@ -25,14 +25,6 @@ LuaStack * newLuaStack(uint64_t size) {
 }
 
 void freeLuaStack(LuaStack * stack) {
-    for (uint64_t i = 0;i < stack->top;i++) {
-        switch(typeOf((LuaValue *)stack->slots[i])) {
-            case LUAPP_TFLOAT:
-            case LUAPP_TSTRING:
-                free(stack->slots[i]->data);
-                break;
-        }
-    }
     free(stack->slots);
     free(stack);
 }

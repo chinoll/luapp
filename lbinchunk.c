@@ -26,7 +26,7 @@ double read_lua_number(FILE *fp) {
   return x;
 }
 uint8_t * read_bytes(FILE *fp,uint64_t n) {
-  uint8_t * buf = (uint8_t *)malloc(n*sizeof(uint8_t));
+  uint8_t * buf = (uint8_t *)malloc(n * sizeof(char));
   if(buf == NULL) 
     panic(OOM);
   if(fread(buf,1,n,fp) == 0)
@@ -45,14 +45,14 @@ char * read_string(FILE *fp) {
 }
 void check_header(FILE *fp) {
   //Check header
-  uint8_t *a,*b;
-  if(strcmp((a = read_bytes(fp,4)),LUA_SIGNATURE) != 0) {
+  char *a,*b;
+  if(strncmp((a = (char *)read_bytes(fp,4)), LUA_SIGNATURE, 4) != 0) {
     panic("not a precompiled chunk");
   } else if(read_byte(fp) != LUAC_VERSION) {
     panic("version mismatch!");
   } else if(read_byte(fp) != LUAC_FORMAT) {
     panic("format mismatch!");
-  } else if(strcmp((b = read_bytes(fp,6)),LUAC_DATA)) {
+  } else if(strncmp((b = (char *)read_bytes(fp,6)), LUAC_DATA, 6)) {
     panic("corrupted!");
   } else if(read_byte(fp) != CINT_SIZE) {
     panic("int size mismatch!");

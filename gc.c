@@ -40,10 +40,11 @@ void GC(void) {
 
 void GCall(void) {
     list *pos;
-
-    list_for_each(pos,&ObjList) {
-        LuaValue *val = container_of(pos,LuaValue,objlist);
-        list_del(pos);
+    list *next = ObjList.next;
+    list_for_each(pos,(&ObjList)->next) {
+        LuaValue *val = container_of(next,LuaValue,objlist);
+        list_del(next);
         freeLuaValue(val);
+        next = pos;
     }
 }

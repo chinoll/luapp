@@ -50,12 +50,12 @@ void LuaMain(Prototype *proto) {
     LuaVM *vm = NewLuaVM(nregs + 8,proto);
     set_top(&vm->state,nregs);
     while(true) {
-        uint64_t pc = getPC(&vm->state);
+        //uint64_t pc = getPC(&vm->state);
         instruction inst = fetch(&vm->state);
         if (get_opcode(inst) != OP_RETURN) {
             ExecuteInstruction(vm, inst);
-            printf("[%ld] %s ", pc + 1, codes[get_opcode(inst)].name);
-            printStack(&vm->state);
+            //printf("[%ld] %s ", pc + 1, codes[get_opcode(inst)].name);
+            //printStack(&vm->state);
         } else {
             break;
         }
