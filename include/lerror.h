@@ -1,5 +1,5 @@
-#ifndef __LUA_ERROR_H
-#define __LUA_ERROR_H
+#ifndef __LUAPP_LERROR_H
+#define __LUAPP_LERROR_H
 
 #include <stdio.h>
 #define panic(str) \
@@ -9,4 +9,4 @@ do {\
     exit(1);    \
 } while(0)
 #define OOM "Out of memory"
-#endif
+#endif  //__LUAPP_LERROR_H
