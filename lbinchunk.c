@@ -26,7 +26,7 @@ double read_lua_number(FILE *fp) {
   return x;
 }
 uint8_t * read_bytes(FILE *fp,uint64_t n) {
-  uint8_t * buf = (int8_t *)malloc(n*sizeof(int8_t));
+  uint8_t * buf = (uint8_t *)malloc(n*sizeof(uint8_t));
   if(buf == NULL) 
     panic(OOM);
   if(fread(buf,1,n,fp) == 0)
@@ -39,13 +39,13 @@ char * read_string(FILE *fp) {
     return NULL;
   if(size == (uint8_t)0xff) {
     uint64_t size = read_uint64(fp);
-    return read_bytes(fp,size - 1);
+    return (char *)read_bytes(fp,size - 1);
   }
-  return read_bytes(fp,size - 1);
+  return (char *)read_bytes(fp,size - 1);
 }
 void check_header(FILE *fp) {
   //Check header
-  char *a,*b;
+  uint8_t *a,*b;
   if(strcmp((a = read_bytes(fp,4)),LUA_SIGNATURE) != 0) {
     panic("not a precompiled chunk");
   } else if(read_byte(fp) != LUAC_VERSION) {

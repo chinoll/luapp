@@ -36,4 +36,5 @@ enum {  //比较运算符
     LUAPP_OPLE     // <=
 } Comp;
 
+#define HASH_SEED (3)
 #endif //LUAPP_CONSTS_H

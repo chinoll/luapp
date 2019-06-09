@@ -83,8 +83,8 @@ struct code_format {
 };
 
 //Get instrucion encoding format
-struct code_format * ABC(instruction ins);
-struct code_format * ABx(instruction ins);
-struct code_format * AsBx(instruction ins);
-struct code_format * Ax(instruction ins);
+struct code_format ABC(instruction ins);
+struct code_format ABx(instruction ins);
+struct code_format AsBx(instruction ins);
+struct code_format Ax(instruction ins);
 #endif

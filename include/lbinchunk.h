@@ -22,6 +22,7 @@
 #define TAG_INTEGER 0x13
 #define TAG_SHORT_STR 0x04
 #define TAG_LONG_STR 0x14
+
 typedef struct __type {
   int type;
   void * data;

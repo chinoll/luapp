@@ -13,8 +13,9 @@ static inline int64_t ShiftRight(int64_t a,int64_t n) {
     if (n > 0)
         return a >> n;
     else
-        ShiftLeft(a,-n);
+        return ShiftLeft(a,-n);
 }
+
 static inline int64_t ShiftLeft(int64_t a,int64_t n) {
     if (n >= 0)
         return a << n;
@@ -23,7 +24,7 @@ static inline int64_t ShiftLeft(int64_t a,int64_t n) {
 }
 
 static inline int64_t IFloorDiv(int64_t a,int64_t b) {
-    if (a > 0 && b < 0 || a < 0 && b < 0 || a%b == 0)
+    if ((a > 0 && b < 0) || (a < 0 && b < 0) || a%b == 0)
         return a / b;
     else
         return a / b - 1;
