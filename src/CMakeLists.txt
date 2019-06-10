@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.14)
+project(Lua++)
+aux_source_directory(. SRC_DIR)
+include_directories(include)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -lxxhash -lm -g -O0 -Wall")
+add_executable(lua++ main.c ${SRC_DIR})
