@@ -9,7 +9,7 @@
 #include "lvalue.h"
 
 #define defaultEntrySize 10
-#define gethash(hashcode,map) (hashcode) % (1 << (map)->len)
+#define gethash(hashcode,map) (uint64_t)(hashcode) % (1 << (map)->len)
 #define loadLimit 600 //散列表中的最多元素数量占比(60%)
 
 void *hashMapInit(HashMap *map,hashFunc hashfunc) {
@@ -117,7 +117,7 @@ void __putItemToHashMap(HashMap *map, uint64_t hashcode, void *key, void *value)
         //如果散列表内的entry数量达到散列表长度的60%则扩展散列表
         expandHashMap(map);
     }
-    uint64_t hash = hashcode % (1 << map->len);
+    uint64_t hash = hashcode % ((uint64_t )1 << map->len);
     HashMapEntry *entry = newHashMapEntry(key,value,hashcode);
     list_add(&entry->list,&map->list[hash]);
     map->count++;
@@ -142,6 +142,8 @@ void deleteHashMapEntry(HashMap *map, HashMapEntry * entry) {
 }
 void *__deleteHashMapItem(HashMap *map, uint64_t hashcode, void *key, uint64_t len, compareFunc equalFunc) {
     HashMapEntry *entry = getHashMapEntry(map,hashcode,key,len,equalFunc);
+    if(entry == NULL)
+        return NULL;
     void *val = entry->value;
     deleteHashMapEntry(map, entry);
     return val;

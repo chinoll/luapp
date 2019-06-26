@@ -27,20 +27,21 @@ LuaValue * newLuaValue(int type,void * data,uint64_t len) {
 
 void initLuaValue(LuaValue *val,int type,void *data,uint64_t len) {
     //初始化LuaValue结构体
+    //printf("%p\n",&val->hashcode);
     val->type = type;
     val->data = data;
     val->convertStatus = false;
-    val->ref_count = val->ref_list_len = val->gc_ref_count = val->hasRoot = 0;
+    val->ref_list_len = DefaultRefListExpandSize;
     val->len = len;
     val->hashcode = addrhash(val, sizeof(void *),HASH_SEED);
     val->ref_list = (LuaValue **)malloc(sizeof(LuaValue *) * DefaultRefListSize);
+    memset((void *)val->ref_list, 0,DefaultRefListSize * sizeof(LuaValue *));
+    list_init(&val->next);
+    val->mark = false;
 
-    list_init(&val->objlist);
-    list_init(&val->gclist);
+    val->equalFunc = memcmp;//printf("hashcode %lu\n",val->hashcode);
 
-    val->equalFunc = memcmp;
-
-    list_add(&val->objlist,&ObjList);
+    list_add(&val->next,&rootSet);
 }
 
 void freeLuaValue(LuaValue * val) {
@@ -50,12 +51,12 @@ void freeLuaValue(LuaValue * val) {
             free(val->data);
             break;
     }
+    list_del(&val->next);
     free(val->ref_list);
     free(val);
 }
 
 void setLuaValue(LuaValue *val, int type, void *data, uint64_t len) {
-    val->hashcode = (uint64_t)val;
     val->data = data;
     val->type = type;
     val->len = len;

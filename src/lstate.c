@@ -71,12 +71,12 @@ void push_nil(LuaState * state) {
     push(state->stack,val);
 }
 void push_bool(LuaState * state,bool b) {
-   LuaValue * val = newLuaValue(LUAPP_TBOOLEAN,(void *)b,0);
+   LuaValue * val = newLuaValue(LUAPP_TBOOLEAN,(void *)b, sizeof(bool));
    push(state->stack,val);
 
 }
 void push_int(LuaState * state,int64_t n) {
-    LuaValue * val = newLuaValue(LUAPP_TINT,(void *)n,0);
+    LuaValue * val = newLuaValue(LUAPP_TINT,(void *)n, sizeof(uint64_t));
     push(state->stack,val);
 }
 void push_num(LuaState * state,double n) {
@@ -97,10 +97,8 @@ void push_string(LuaState * state,char * s) {
 
 void replace(LuaState * state,int64_t idx) {
     //将栈顶的值弹出，然后写入指定位置
-    incRef(state->stack->slots[state->stack->top - 1]);
     LuaValue * val = pop(state->stack);
     uint64_t top = state->stack->top;
-    decRef(val);
     if(top < idx && top < state->stack->stack_len)
         set_top(state,state->stack->top + 1);
     set(state->stack,idx,val);
@@ -233,8 +231,8 @@ static LuaValue * __arith(LuaValue *a,LuaValue *b,operator op) {
     //进行实际的算术运算，并返回结果
     if(a == NULL || b == NULL)
         return NULL;
-    int64_t ires;
-    double fres;
+    int64_t ires = 0;
+    double fres = 0;
     LuaValue * res;
     int flag = 0;
 
@@ -273,7 +271,7 @@ static LuaValue * __arith(LuaValue *a,LuaValue *b,operator op) {
         *n = fres;
         res = newLuaValue(LUAPP_TNIL,n, sizeof(double));
     } else {
-        res = newLuaValue(LUAPP_TINT,(void *)ires,0);
+        res = newLuaValue(LUAPP_TINT,(void *)ires, sizeof(uint64_t));
     }
     return res;
 }

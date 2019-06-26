@@ -21,27 +21,18 @@ typedef struct __luavalue {
     void * data;
     int type;                                   //数据类型
     uint64_t len;                           //data字段长度
-    int64_t ref_count;                  //引用计数
     bool convertStatus;               //转换状态
     uint64_t hashcode;
     compareFunc equalFunc;      //比较函数
-    struct __luavalue **ref_list;   //引用链
-    uint64_t ref_list_len;                  //引用链长度
-    uint64_t gc_ref_count;               //被Gc Roots对象引用的次数
-    int hasRoot;                                //是不是gcRoot对象
-    list objlist;
-    list gclist;
+    struct __luavalue **ref_list;   //n叉树
+    uint64_t ref_list_len;                  //n叉树的长度
+    bool mark;
+    list next;
 }LuaValue;
 
 static inline int typeOf(LuaValue *value) {
     return value->type;
 }
-
-
-#define incRef(x) (x)->ref_count++
-#define decRef(x) (x)->ref_count--
-#define getRef(x) (x)->ref_count
-#define DefaultRefList 10
 
 void addRef(LuaValue *val,LuaValue *ref);
 void deleteRef(LuaValue *val,LuaValue *ref);

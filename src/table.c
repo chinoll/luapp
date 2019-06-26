@@ -93,10 +93,7 @@ void __putItemToTable(LuaTable *table,LuaValue *key,LuaValue *value) {
 void putItemToTable(LuaValue *table,LuaValue *key,LuaValue *value) {
     LuaTable *ltable = (LuaTable *)table->data;
     __putItemToTable(ltable,key,value);
-    addRef(table,value);
-    incRef(value);
-    if(table->hasRoot)
-        value->gc_ref_count++;
+    addRef(value,table);
 }
 LuaValue *__deleteMapItem(LuaTable *table, LuaValue *key) {
     //从HashMap里删除一个LuaValue实例
@@ -124,8 +121,5 @@ void deleteItem(LuaValue *tableval,LuaValue *key) {
     //面向LuaValue的接口
     LuaTable *table = (LuaTable *)tableval->data;
     LuaValue *val = __deleteItem(table,key);
-    deleteRef(tableval,val);
-    decRef(val);
-    if(tableval->hasRoot)
-        val->gc_ref_count--;
+    deleteRef(val,tableval);
 }

@@ -22,8 +22,7 @@ typedef struct hashmap {
     hashFunc hash;    //散列函数
 } HashMap;
 
-#define hashmap_for_each(entry,hashmap) for((entry) = (hashmap)->list;(entry) <  (hashmap)->list + (1 << (hashmap)->len);(entry)++)
-
+#define hashmap_for_each(entry,hashmap) for((entry) = (hashmap)->list;(entry) <  ((hashmap)->list + (1 << (hashmap)->len));(entry)++)
 HashMap *newHashMap(hashFunc hashfunc);
 void *hashMapInit(HashMap *map,hashFunc hashfunc);
 HashMapEntry *newHashMapEntry(void *key,void *value,uint64_t hashcode);

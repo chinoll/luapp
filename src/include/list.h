@@ -43,4 +43,8 @@ static inline int list_empty(struct __list *list) {
     return list->next == list;
 }
 
+static inline void list_move(struct __list *list, struct __list *head) {
+    list_del(list);
+    list_add(list,head);
+}
 #endif //LUAPP_LIST_H

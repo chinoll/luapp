@@ -3,13 +3,12 @@
 
 #include "list.h"
 #include "hashmap.h"
+#include "lstack.h"
 
-list GcList;    //需要被回收的对象
-list ObjList;   //在内存中的对象
-
+list rootSet;
 #define GCperiod 1000 //垃圾回收的默认周期，1000ms
 
-void GC(void);
+void GC(LuaStack *stack);
 void GCall(void);
 uint64_t getMillisecond(void);
 

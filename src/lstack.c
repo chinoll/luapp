@@ -48,27 +48,20 @@ void checkStack (LuaStack * stack,uint64_t n) {
         stack->slots = s;
     }
 }
-
 void push (LuaStack * stack,LuaValue *val) {
     if (stack->top == stack->stack_len) {
         panic("stack overflow!");
     }
-
-    incRef(val);
     stack->slots[stack->top] = val;
     stack->top++;
-    val->hasRoot =1;
 }
 LuaValue * pop(LuaStack *stack) {
     if(stack->top < 1) {
         panic("stack underflow!");
     }
     stack->top--;
-
     LuaValue * val = stack->slots[stack->top];
     stack->slots[stack->top] = NULL;
-    decRef(val);
-    val->hasRoot = 0;
     return val;
 }
 uint64_t absIndex(LuaStack * stack,int64_t idx) {
@@ -95,9 +88,7 @@ LuaValue *  get(LuaStack * stack,int64_t idx) {
 void set(LuaStack *stack,int64_t idx,LuaValue * val) {
     uint64_t absidx = absIndex(stack,idx);
     if(isValid(stack,idx)) {
-        incRef(val);
         stack->slots[absidx - 1] = val;
-        //putItemToHashMap(&ObjMap,val->hashcode,val->data,val->len,val);
         return;
     }
     panic("invalid index");

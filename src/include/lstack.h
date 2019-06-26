@@ -11,7 +11,7 @@ typedef  struct __lua_stack {
     uint64_t stack_len;
     uint64_t top;           //stack top index
 } LuaStack;
-
+#define luaStackEmpty(stack) ((stack)->top == 0)
 LuaStack * newLuaStack(uint64_t size);
 void freeLuaStack(LuaStack * stack);
 void checkStack(LuaStack *stack,uint64_t n);
