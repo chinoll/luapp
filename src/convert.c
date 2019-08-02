@@ -97,7 +97,9 @@ LuaValue * ConvertToString(LuaValue *t) {
     LuaValue * val = newLuaValue(LUAPP_TSTRING,NULL,0);
     switch(t->type) {
         case LUAPP_TSTRING: {
-            setLuaValue(val,LUAPP_TSTRING,t->data,t->len);
+            char *str = malloc(t->len + 1);
+            strcpy(str,t->data);
+            setLuaValue(val,LUAPP_TSTRING,str,t->len);
             val->convertStatus = true;
             break;
         }
@@ -114,7 +116,8 @@ LuaValue * ConvertToString(LuaValue *t) {
             char * str = (char *)malloc(sizeof(char) * 20);
             if(str == NULL)
                 panic(OOM);
-            memset(str,0,20 * sizeof(char));
+            //memset(str,0,20 * sizeof(char));
+            sprintf(str,"%ld",(int64_t)t->data);
             setLuaValue(val,LUAPP_TSTRING,str,20);
             break;
         }
@@ -126,3 +129,23 @@ LuaValue * ConvertToString(LuaValue *t) {
     return val;
 }
 
+int32_t fb2int(int32_t x) {
+    if(x < 8)
+        return x;
+    else
+        return (((uint32_t )x & 7u) + 8u) << (((uint32_t) x >> 3u) - 1u);
+}
+
+int32_t int2fb(uint32_t x) {
+    int e = 0;
+    if(x < 8) {
+        x = (x + 0xf) >>4u;
+        e += 4;
+    }
+    for(;x >= (8u << 1u);e++) {
+        x = (x + 1u) >> 1u;
+        e++;
+    }
+
+    return ((e + 1u)) << 3u | (x - 8);
+}

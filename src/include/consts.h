@@ -14,6 +14,7 @@
 #define LUAPP_TFUNCTION 7
 #define LUAPP_TUSERDATA 8
 #define LUAPP_TTHREAD 9
+
 enum {  // 算术和按位运算符
     LUAPP_OPADD,        // +
     LUAPP_OPSUB,        // -
@@ -37,4 +38,5 @@ enum {  //比较运算符
 } Comp;
 
 #define HASH_SEED (3)
+#define LFIELDS_PER_FLUSH 50
 #endif //LUAPP_CONSTS_H

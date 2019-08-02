@@ -15,11 +15,11 @@ const code_struct codes[] = {
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgU,.argCMode = OpArgN,.opMode = IABC,"LOADNIL",loadNilInst},
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgU,.argCMode = OpArgN,.opMode = IABC,"GETUPVAL"},
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgU,.argCMode = OpArgK,.opMode = IABC,"GETTABUP"},
-        {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgR,.argCMode = OpArgK,.opMode = IABC,"GETTABLE"},
+        {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgR,.argCMode = OpArgK,.opMode = IABC,"GETTABLE",getTableInst},
         {.testFlag = 0,.setAFlag = 0,.argBMode = OpArgK,.argCMode = OpArgK,.opMode = IABC,"SETTABUP"},
         {.testFlag = 0,.setAFlag = 0,.argBMode = OpArgU,.argCMode = OpArgN,.opMode = IABC,"SETUPVAL"},
-        {.testFlag = 0,.setAFlag = 0,.argBMode = OpArgK,.argCMode = OpArgK,.opMode = IABC,"SETTABLE"},
-        {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgU,.argCMode = OpArgU,.opMode = IABC,"NEWTABLE"},
+        {.testFlag = 0,.setAFlag = 0,.argBMode = OpArgK,.argCMode = OpArgK,.opMode = IABC,"SETTABLE",setTableInst},
+        {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgU,.argCMode = OpArgU,.opMode = IABC,"NEWTABLE",newTableInst},
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgR,.argCMode = OpArgK,.opMode = IABC,"SELF"},
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgK,.argCMode = OpArgK,.opMode = IABC,"ADD",addInst},
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgK,.argCMode = OpArgK,.opMode = IABC,"SUB",subInst},
@@ -51,10 +51,10 @@ const code_struct codes[] = {
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgR,.argCMode = OpArgN,.opMode = IAsBx,"FORPREP",forPrepInst},
         {.testFlag = 0,.setAFlag = 0,.argBMode = OpArgN,.argCMode = OpArgU,.opMode = IABC,"TFORCALL"},
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgR,.argCMode = OpArgN,.opMode = IAsBx,"TFORLOOP"},
-        {.testFlag = 0,.setAFlag = 0,.argBMode = OpArgU,.argCMode = OpArgU,.opMode = IABC,"SETLIST"},
+        {.testFlag = 0,.setAFlag = 0,.argBMode = OpArgU,.argCMode = OpArgU,.opMode = IABC,"SETLIST",setListInst},
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgU,.argCMode = OpArgN,.opMode = IABx,"CLOSURE"},
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgU,.argCMode = OpArgN,.opMode = IABC,"VARARG"},
-        {.testFlag = 0,.setAFlag = 0,.argBMode = OpArgU,.argCMode = OpArgU,.opMode = IAx,"EXTRAARG"}
+        {.testFlag = 0,.setAFlag = 0,.argBMode = OpArgU,.argCMode = OpArgU,.opMode = IAx,"EXTRAARG"},
 };
 
 LuaVM *NewLuaVM(uint64_t stacksize,Prototype *prototype) {

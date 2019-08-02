@@ -3,7 +3,7 @@
 #include "inst.h"
 #include "lstate.h"
 #include "opcode.h"
-
+#include "convert.h"
 //Lua指令集
 void moveInst(instruction i,LuaVM *vm) {
     struct code_format ins = ABC(i);
@@ -103,11 +103,11 @@ void concatInst(instruction i,LuaVM *vm) {
     ins.c++;
     uint32_t n = ins.c - ins.b + 1;
     checkStack(vm->state.stack,n);
-    for(uint32_t i = ins.b;i < ins.c;i++) {
-        push_value(&vm->state,i);
-    }
+    for(uint32_t j = ins.b;j <= ins.c;j++)
+        push_value(&vm->state,j);
+
     Concat(&vm->state,n,ins.b);
-    replace(&vm->state,ins.a);
+        replace(&vm->state,ins.a);
 }
 
 inline static void __compare(instruction i,LuaVM *vm,CompareOp op) {
@@ -181,3 +181,49 @@ void forLoopInst(instruction i,LuaVM *vm) {
         copy_value(&vm->state,ins.a,ins.a + 3);
     }
 }
+
+void newTableInst(instruction i,LuaVM *vm) {
+    struct code_format ins = ABC(i);
+    ins.a++;
+    CreateTable(&vm->state,fb2int(ins.b),fb2int(ins.c));
+    replace(&vm->state,ins.a);
+}
+
+void setTableInst(instruction i,LuaVM *vm) {
+    struct code_format ins = ABC(i);
+    ins.a++;
+
+    getRK(&vm->state,ins.b);
+    getRK(&vm->state,ins.c);
+    SetTable(&vm->state, ins.a);
+
+}
+
+void setListInst(instruction i,LuaVM *vm) {
+    struct code_format ins = ABC(i);
+    ins.a++;
+
+    if(ins.c > 0)
+        ins.c--;
+    else
+        ins.c = Ax(fetch(&vm->state)).ax;
+
+    int64_t idx = (int64_t)((int64_t )ins.c * LFIELDS_PER_FLUSH);
+
+    for(uint64_t j = 1;j <= ins.b;j++) {
+        idx++;
+        push_value(&vm->state,ins.a + j);
+        SetI(&vm->state,ins.a,idx);
+    }
+}
+
+void getTableInst(instruction i,LuaVM *vm) {
+    struct code_format ins = ABC(i);
+    ins.a++;
+    ins.b++;
+
+    getRK(&vm->state,ins.c);
+    GetTable(&vm->state,ins.b);
+    replace(&vm->state,ins.a);
+}
+

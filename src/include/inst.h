@@ -50,4 +50,9 @@ void testInst(instruction i,LuaVM *vm);
 void forPrepInst(instruction i,LuaVM *vm);
 void forLoopInst(instruction i,LuaVM *vm);
 
+void getTableInst(instruction i,LuaVM *vm);
+void setTableInst(instruction i,LuaVM *vm);
+void newTableInst(instruction i,LuaVM *vm);
+void setListInst(instruction i,LuaVM *vm);
+
 #endif //LUAPP_INST_H

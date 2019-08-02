@@ -1,14 +1,10 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <xxhash.h>
-#include <string.h>
 #include <sys/time.h>
-#include <unistd.h>
 #include <stdbool.h>
 
 #include "list.h"
-#include "lerror.h"
-#include "hashmap.h"
 #include "lvalue.h"
 #include "gc.h"
 #include "lstack.h"
@@ -36,6 +32,7 @@ void mark(LuaStack *stack) {
             for(uint64_t j = 0;j < node->ref_list_len;j++) {
                 if(node->ref_list[j] != NULL) {
                     push(stack1, node->ref_list[j]);
+                    node->ref_list[j]->mark = true;
                     flag = false;
                 }
             }

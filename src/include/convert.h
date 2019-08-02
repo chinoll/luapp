@@ -15,5 +15,6 @@ LuaValue * ConvertToBool(LuaValue *t);
 #define ToStringX(stack,idx) ConvertToString(get(stack,idx))
 #define ToBoolX(stack,idx) ConvertToBool(get(stack,idx))
 
-#define FloatToInt(f) ((int64_t)f)
+int32_t fb2int(int32_t x);
+int32_t int2fb(uint32_t x);
 #endif //LUAPP_CONVERT_H

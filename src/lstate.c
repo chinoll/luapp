@@ -10,7 +10,7 @@
 #include "lmath.h"
 #include "convert.h"
 #include "lbinchunk.h"
-
+#include "table.h"
 operator operators[] = {//算术运算函数
         {iadd,fadd},
         {isub,fsub},
@@ -67,7 +67,7 @@ void push_value(LuaState * state,int64_t idx) {
     push(state->stack,val);
 }
 void push_nil(LuaState * state) {
-    LuaValue * val = newLuaValue(LUAPP_TNIL,NULL,0);
+    LuaValue * val = newNil();
     push(state->stack,val);
 }
 void push_bool(LuaState * state,bool b) {
@@ -76,22 +76,15 @@ void push_bool(LuaState * state,bool b) {
 
 }
 void push_int(LuaState * state,int64_t n) {
-    LuaValue * val = newLuaValue(LUAPP_TINT,(void *)n, sizeof(uint64_t));
+    LuaValue * val = newInt(n);
     push(state->stack,val);
 }
 void push_num(LuaState * state,double n) {
-    double * t = (double *)malloc(sizeof(double));
-    *t = n;
-    LuaValue * val = newLuaValue(LUAPP_TFLOAT,(void *)t, sizeof(double));
+    LuaValue * val = newFloat(n);
     push(state->stack,val);
 }
 void push_string(LuaState * state,char * s) {
-    uint64_t len = strlen(s);
-    char * str = (char *)malloc(sizeof(char)*len);
-    if(str == NULL)
-        panic(OOM);
-    strcpy(str,s);
-    LuaValue * val = newLuaValue(LUAPP_TSTRING,str,strlen(str));
+    LuaValue * val = newStr(s);
     push(state->stack,val);
 }
 
@@ -194,7 +187,6 @@ char * to_string(LuaState * state,int64_t idx) {
     LuaValue * val =ToStringX(state->stack,idx);
     char *str = val->data;
     return str;
-
 }
 
 void set_top(LuaState * state,int64_t idx) {
@@ -264,15 +256,10 @@ static LuaValue * __arith(LuaValue *a,LuaValue *b,operator op) {
             }
         }
     }
-    if(flag) {
-        double * n = (double *)malloc(sizeof(double));
-        if(n == NULL)
-            panic(OOM);
-        *n = fres;
-        res = newLuaValue(LUAPP_TNIL,n, sizeof(double));
-    } else {
-        res = newLuaValue(LUAPP_TINT,(void *)ires, sizeof(uint64_t));
-    }
+    if(flag)
+        res = newFloat(fres);
+    else
+        res = newInt(ires);
     return res;
 }
 
@@ -299,18 +286,18 @@ bool __eq(LuaValue *a,LuaValue *b) {
             return b->type == LUAPP_TNIL;
         case LUAPP_TBOOLEAN: {
             LuaValue *val = ConvertToBool(b);
-            bool b = (bool) val->data == (bool) a->data;
+            bool c = (bool) val->data == (bool) a->data;
             bool convertStatus = val->convertStatus;
-            if (convertStatus && b)
+            if (convertStatus && c)
                 return true;
             else
                 return false;
         }
         case LUAPP_TSTRING: {
             LuaValue * val = ConvertToString(b);
-            bool b = strcmp(val->data,a->data);
+            bool c = strcmp(val->data,a->data);
             bool convertStatus = val->convertStatus;
-            if(convertStatus && b)
+            if(convertStatus && c)
                 return true;
             else
                 return false;
@@ -319,15 +306,15 @@ bool __eq(LuaValue *a,LuaValue *b) {
             if(b->type != LUAPP_TINT && b->type != LUAPP_TFLOAT)
                 return false;
             LuaValue *val = ConvertToInt(b);
-            bool b = (int64_t)val->data == (int64_t)a->data;
-            return b;
+            bool c = (int64_t)val->data == (int64_t)a->data;
+            return c;
         }
         case LUAPP_TFLOAT: {
             if(b->type != LUAPP_TINT && b->type != LUAPP_TFLOAT)
                 return false;
             LuaValue *val = ConvertToFloat(b);
-            bool b = *(double *)val->data == *(double *)a->data;
-            return b;
+            bool c = *(double *)val->data == *(double *)a->data;
+            return c;
             }
         default:
             //暂时不处理其他的数据类型
@@ -339,9 +326,9 @@ bool __lt(LuaValue *a,LuaValue *b) {
     switch(a->type) {
         case LUAPP_TSTRING: {
             LuaValue * val = ConvertToString(b);
-            bool b = strcmp(val->data,a->data) < 0;
+            bool c = strcmp(val->data,a->data) < 0;
             bool convertStatus = val->convertStatus;
-            if(convertStatus && b)
+            if(convertStatus && c)
                 return true;
             else
                 return false;
@@ -350,15 +337,15 @@ bool __lt(LuaValue *a,LuaValue *b) {
             if(b->type != LUAPP_TINT && b->type != LUAPP_TFLOAT)
                 return false;
             LuaValue *val = ConvertToInt(b);
-            bool b = (int64_t)val->data < (int64_t)a->data;
-            return b;
+            bool c = (int64_t)val->data < (int64_t)a->data;
+            return c;
         }
         case LUAPP_TFLOAT: {
             if(b->type != LUAPP_TINT && b->type != LUAPP_TFLOAT)
                 return false;
             LuaValue *val = ConvertToFloat(b);
-            bool b = *(double *)val->data < *(double *)a->data;
-            return b;
+            bool c = *(double *)val->data < *(double *)a->data;
+            return c;
         }
         default:
             //暂时不处理其他的数据类型
@@ -370,9 +357,9 @@ bool __le(LuaValue *a,LuaValue *b) {
     switch(a->type) {
         case LUAPP_TSTRING: {
             LuaValue * val = ConvertToString(b);
-            bool b = strcmp(val->data,a->data) <= 0;
+            bool c = strcmp(val->data,a->data) <= 0;
             bool convertStatus = val->convertStatus;
-            if(convertStatus && b)
+            if(convertStatus && c)
                 return true;
             else
                 return false;
@@ -381,15 +368,15 @@ bool __le(LuaValue *a,LuaValue *b) {
             if(b->type != LUAPP_TINT && b->type != LUAPP_TFLOAT)
                 return false;
             LuaValue *val = ConvertToInt(b);
-            bool b =  (int64_t)a->data <= (int64_t)val->data;
-            return b;
+            bool c =  (int64_t)a->data <= (int64_t)val->data;
+            return c;
         }
         case LUAPP_TFLOAT: {
             if(b->type != LUAPP_TINT && b->type != LUAPP_TFLOAT)
                 return false;
             LuaValue *val = ConvertToFloat(b);
-            bool b = *(double *)val->data <= *(double *)a->data;
-            return b;
+            bool c = *(double *)val->data <= *(double *)a->data;
+            return c;
         }
         default:
             //暂时不处理其他的数据类型
@@ -400,39 +387,112 @@ bool __le(LuaValue *a,LuaValue *b) {
 void Len(LuaState * state,int64_t idx) {
     //获取指定索引处值的长度,将长度推入栈顶
     LuaValue *val = get(state->stack,idx);
-    if(val->type != LUAPP_TSTRING)
+    LuaValue *res = NULL;
+    if(val->type == LUAPP_TSTRING)
+        res = newInt(strlen(val->data));
+    else if(val->type == LUAPP_TTABLE)
+        res = newInt(val->len);
+    else
         panic("length error!");
-    LuaValue *res = newLuaValue(LUAPP_TINT,(void *)strlen(val->data),0);
+
     push(state->stack,res);
 }
 
-void Concat(LuaState * state,int64_t n,int64_t b) {
+void Concat(LuaState * state,int64_t n,int32_t b) {
     //从栈顶弹出n个值，对值进行拼接，把结果推入栈顶
+    //uint64_t b = state->stack->top - 1;
     if(n == 0) {
-        LuaValue * val = newLuaValue(LUAPP_TSTRING,"",0);
+        LuaValue * val = newStr("");
         push(state->stack,val);
     } else if(n >= 2) {
         for(int64_t i = 1;i < n;i++) {
-            if(isString(state,b) && isString(state,b + 1)) {
+            if(isString(state, -1) && isString(state, -2)) {
                 char *str1,*str2;
-                str1 = to_string(state,b);
-                str2 = to_string(state,b + 1);
-                char * str = malloc(sizeof(char)*strlen(str1) + sizeof(char)*strlen(str2));
+                str1 = to_string(state,-2);
+                str2 = to_string(state,-1);
+                char * str = malloc(sizeof(char)*strlen(str1) + sizeof(char)*strlen(str2) + 1);
                 if(str == NULL)
                     panic(OOM);
 
+                //free(str2);
                 strcpy(str,str1);
                 strcpy(str + strlen(str1),str2);
 
                 pop(state->stack);
                 pop(state->stack);
 
-                LuaValue * val1 = newLuaValue(LUAPP_TSTRING,str,strlen(str));
+                LuaValue * val1 = newStr(str);
                 push(state->stack,val1);
+                free(str);
                 continue;
             }
             panic("concatenation error!");
         }
     }
     //n等于1时，什么都不做
+}
+
+void CreateTable(LuaState *state,uint64_t nArr,uint64_t nRec) {
+    //创建一个表，并将表推入栈中
+    //@nArr:数组长度
+    //@nRec:是否创建散列表，大于0则创建散列表
+    LuaValue *val = NewTable(nArr,nRec);
+    push(state->stack,val);
+}
+
+int __getTable(LuaStack *stack, LuaValue *table, LuaValue *key) {
+    //从表中获取一个值，并将值推入栈中
+    if(typeOf(table) != LUAPP_TTABLE)
+        panic("Not a table!");
+    LuaValue *res = getTableItem(table,key);
+    push(stack,res);
+    return typeOf(res);
+}
+
+int GetTable(LuaState *state, const int64_t idx) {
+    //从表中获取一个值
+    //@idx:表在栈中的位置
+    LuaValue *t = get(state->stack,idx);
+    LuaValue *k = pop(state->stack);
+
+    return __getTable(state->stack, t, k);
+}
+
+int GetField(LuaState *state, const int64_t idx, char * k) {
+    //从表中获取一个值
+    LuaValue *t = get(state->stack, idx);
+    LuaValue *v = newStr(k);
+
+    return __getTable(state->stack,t,v);
+}
+
+int GetI(LuaState *state,const int64_t idx,const int64_t i) {
+    //从表中获取一个值
+    LuaValue *t = get(state->stack,idx);
+    LuaValue *v = newInt(i);
+    return __getTable(state->stack,t,v);
+}
+void __setTable(LuaValue *t,LuaValue *k,LuaValue *v) {
+    //修改/添加/删除表中的值
+    if (typeOf(t) == LUAPP_TTABLE) {
+        putItemTable(t,k,v);
+        return;
+    }
+    panic("Not a table!");
+}
+
+void SetTable(LuaState *state,const int64_t idx) {
+    //修改/添加/删除表中的值
+    LuaValue *t = get(state->stack,idx);
+    LuaValue *v = pop(state->stack);
+    LuaValue *k = pop(state->stack);
+    __setTable(t,k,v);
+}
+
+void SetI(LuaState *state, const int64_t idx, int64_t i) {
+    //修改/添加/删除表中的值
+    LuaValue *t = get(state->stack,idx);
+    LuaValue *v = pop(state->stack);
+    LuaValue *k = newInt(i);
+    __setTable(t,k,v);
 }

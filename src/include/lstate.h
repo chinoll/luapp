@@ -19,6 +19,11 @@ typedef struct __lua_state {
     uint64_t pc;
 } LuaState;
 
+typedef struct __operator {
+    int64_t (*intFunc)(int64_t,int64_t);
+    double (*floatFunc)(double,double);
+} operator;
+
 LuaState * newLuaState(uint64_t stacksize, Prototype *prototype);
 void freeLuaState(LuaState * state);
 static inline uint64_t get_top(LuaState * state) {
@@ -60,7 +65,7 @@ char * to_string(LuaState * state,int64_t idx);
 void Arith(LuaState * state,ArithOp op);
 bool Compare(LuaState * state,int64_t idx1,int64_t idx2,CompareOp op);
 void Len(LuaState * state,int64_t idx);
-void Concat(LuaState * state,int64_t n,int64_t b);
+void Concat(LuaState * state,int64_t n,int32_t b);
 
 static inline uint64_t getPC(LuaState *state) {
     return state->pc;
@@ -116,10 +121,12 @@ static inline void getRK(LuaState *state,int32_t rk) {
         push_value(state,rk + 1);
     }
 }
-
-typedef struct __operator {
-  int64_t (*intFunc)(int64_t,int64_t);
-  double (*floatFunc)(double,double);
-} operator;
+void CreateTable(LuaState *state,uint64_t nArr,uint64_t nRec);
+int __getTable(LuaStack *stack,LuaValue *table,LuaValue *key);
+int GetTable(LuaState *state,int64_t idx);
+int GetField(LuaState *state, int64_t idx,char *k);
+void __setTable(LuaValue *t,LuaValue *k,LuaValue *v);
+void SetTable(LuaState *state, int64_t idx);
+void SetI(LuaState *state, int64_t idx, int64_t i);
 
 #endif //LUAPP_LSTATE_H

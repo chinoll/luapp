@@ -26,11 +26,12 @@ double read_lua_number(FILE *fp) {
   return x;
 }
 uint8_t * read_bytes(FILE *fp,uint64_t n) {
-  uint8_t * buf = (uint8_t *)malloc(n * sizeof(char));
+  uint8_t * buf = (uint8_t *)malloc(n * sizeof(char) + 1);
   if(buf == NULL) 
     panic(OOM);
   if(fread(buf,1,n,fp) == 0)
     panic(strerror(errno));
+  buf[n] = 0;
   return buf;
 }
 char * read_string(FILE *fp) {

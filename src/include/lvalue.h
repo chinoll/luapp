@@ -22,11 +22,12 @@ typedef struct __luavalue {
     int type;                                   //数据类型
     uint64_t len;                           //data字段长度
     bool convertStatus;               //转换状态
-    uint64_t hashcode;
-    compareFunc equalFunc;      //比较函数
+    compareFunc eqfunc;         //比较函数
+    uint64_t addr_hashcode;
+    uint64_t data_hashcode;
     struct __luavalue **ref_list;   //n叉树
-    uint64_t ref_list_len;                  //n叉树的长度
-    bool mark;
+    uint64_t ref_list_len;              //n叉树的长度
+    bool mark;                             //被标记为true时代表该对象无需回收
     list next;
 }LuaValue;
 
@@ -39,11 +40,17 @@ void deleteRef(LuaValue *val,LuaValue *ref);
 
 LuaValue * newLuaValue(int type,void * data,uint64_t len);
 void initLuaValue(LuaValue *val,int type,void *data,uint64_t len);
-void freeLuaValue(LuaValue * val);
 void setLuaValue(LuaValue *val, int type, void *data, uint64_t len);
+void freeLuaValue(LuaValue * val);
 
-int __intCmp(const void * s1, const void * s2, size_t len);
-int __floatCmp(const void *s1, const void *s2, size_t len);
+LuaValue *newStr(const char *str);
+#define newInt(n) newLuaValue(LUAPP_TINT,(void *)n,sizeof(int64_t))
+LuaValue *newFloat(double n);
+LuaValue *NewTable(uint64_t nArr,uint64_t nRec);
+#define newNil() newLuaValue(LUAPP_TNIL,NULL,0)
+void setStr(const char *str);
+void setInt(int64_t n);
+void setFloat(double n);
 
 uint64_t addrhash(void * key,uint64_t len,uint64_t seed);
 void __expanRefList(LuaValue *val);
