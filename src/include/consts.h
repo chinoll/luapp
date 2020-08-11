@@ -15,7 +15,7 @@
 #define LUAPP_TUSERDATA 8
 #define LUAPP_TTHREAD 9
 
-enum {  // 算术和按位运算符
+extern enum {  // 算术和按位运算符
     LUAPP_OPADD,        // +
     LUAPP_OPSUB,        // -
     LUAPP_OPMUL,       // *
@@ -31,7 +31,7 @@ enum {  // 算术和按位运算符
     LUAPP_OPUNM,    // - (unary minus)
     LUAPP_OPBNOT    // ~
 }Op;
-enum {  //比较运算符
+extern enum {  //比较运算符
     LUAPP_OPEQ, // ==
     LUAPP_OPLT, // <
     LUAPP_OPLE     // <=

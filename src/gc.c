@@ -9,6 +9,7 @@
 #include "gc.h"
 #include "lstack.h"
 
+list rootSet;
 uint64_t getMillisecond(void) {
     //获取时间戳
     struct timeval tv;

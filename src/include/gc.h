@@ -5,7 +5,7 @@
 #include "hashmap.h"
 #include "lstack.h"
 
-list rootSet;
+extern list rootSet;
 #define GCperiod 1000 //垃圾回收的默认周期，1000ms
 
 void GC(LuaStack *stack);
