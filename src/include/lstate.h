@@ -15,8 +15,6 @@ typedef int64_t CompareOp; //比较运算符
 
 typedef struct __lua_state {
     LuaStack * stack;
-    Prototype *prototype;
-    uint64_t pc;
 } LuaState;
 
 typedef struct __operator {
@@ -24,13 +22,13 @@ typedef struct __operator {
     double (*floatFunc)(double,double);
 } operator;
 
-LuaState * newLuaState(uint64_t stacksize, Prototype *prototype);
+LuaState * newLuaState(Prototype *prototype);
 void freeLuaState(LuaState * state);
 static inline uint64_t get_top(LuaState * state) {
     return state->stack->top;
 }
 
-void popN(LuaState * state,uint64_t n);
+
 void copy_value(LuaState * state,int64_t fromIdx,int64_t toIdx);
 void push_value(LuaState * state,int64_t idx);
 void replace(LuaState * state,int64_t idx);
@@ -68,11 +66,11 @@ void Len(LuaState * state,int64_t idx);
 void Concat(LuaState * state,int64_t n,int32_t b);
 
 static inline uint64_t getPC(LuaState *state) {
-    return state->pc;
+    return state->stack->pc;
 }
 
 static inline void addPC(LuaState *state,int64_t n) {
-    state->pc += n;
+    state->stack->pc += n;
 }
 
 static inline uint32_t fetch(LuaState *state) {
@@ -80,15 +78,15 @@ static inline uint32_t fetch(LuaState *state) {
     //取指函数
     //根据PC索引从指令表里取出当前指令，再将PC加1
 
-    uint32_t i = state->prototype->code[state->pc];
-    state->pc++;
+    uint32_t i = state->stack->lua_closure->proto->code[state->stack->pc];
+    state->stack->pc++;
     return i;
 }
 
 static inline void getConst(LuaState *state,int32_t idx) {
 
     //根据索引从常量表里，取出常量值，将其推入栈顶
-    Type t = state->prototype->constants[idx];
+    Type t = state->stack->lua_closure->proto->constants[idx];
     switch(t.type) {
         case TAG_NIL:
             push_nil(state);
@@ -129,4 +127,8 @@ void __setTable(LuaValue *t,LuaValue *k,LuaValue *v);
 void SetTable(LuaState *state, int64_t idx);
 void SetI(LuaState *state, int64_t idx, int64_t i);
 
+void callLuaClosure(LuaState *state,int64_t nargs,int64_t nresults,Closure *closure);
+int64_t Load(FILE *fp, char *mode);
+void Call(LuaState *state,int64_t nargs, int64_t nresults);
+void LoadVararg(LuaState *state,int64_t n);
 #endif //LUAPP_LSTATE_H

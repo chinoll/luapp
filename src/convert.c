@@ -8,13 +8,13 @@
 #include "lerror.h"
 #include "consts.h"
 #include "lstack.h"
-
+#include "memory.h"
 
 LuaValue * ConvertToFloat(LuaValue *t) {
     if(t == NULL || t->data == NULL)
         panic("The value of t and t->data cannot be NULL");
 
-    double *n = malloc(sizeof(double));
+    double *n = lmalloc(sizeof(double));
     if(n == NULL)
         panic(OOM);
 
@@ -97,14 +97,14 @@ LuaValue * ConvertToString(LuaValue *t) {
     LuaValue * val = newLuaValue(LUAPP_TSTRING,NULL,0);
     switch(t->type) {
         case LUAPP_TSTRING: {
-            char *str = malloc(t->len + 1);
+            char *str = lmalloc(t->len + 1);
             strcpy(str,t->data);
             setLuaValue(val,LUAPP_TSTRING,str,t->len);
             val->convertStatus = true;
             break;
         }
         case LUAPP_TFLOAT: {
-            char * str = (char *)malloc(sizeof(char) * 30);
+            char * str = (char *)lmalloc(sizeof(char) * 30);
             if(str == NULL)
                 panic(OOM);
             memset(str,0,30* sizeof(char));
@@ -113,7 +113,7 @@ LuaValue * ConvertToString(LuaValue *t) {
             break;
         }
         case LUAPP_TINT: {
-            char * str = (char *)malloc(sizeof(char) * 20);
+            char * str = (char *)lmalloc(sizeof(char) * 20);
             if(str == NULL)
                 panic(OOM);
             //memset(str,0,20 * sizeof(char));
@@ -133,7 +133,7 @@ int32_t fb2int(int32_t x) {
     if(x < 8)
         return x;
     else
-        return (((uint32_t )x & 7u) + 8u) << (((uint32_t) x >> 3u) - 1u);
+        return ((x & 7) + 8) << (uint32_t)((x >> 3) - 1);
 }
 
 int32_t int2fb(uint32_t x) {

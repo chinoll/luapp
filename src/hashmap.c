@@ -7,6 +7,8 @@
 #include "list.h"
 #include "consts.h"
 #include "lvalue.h"
+#include "lerror.h"
+#include "memory.h"
 
 #define defaultEntrySize 10u
 #define gethash(hashcode,map) (uint64_t)((hashcode) % (1u << (map)->len))
@@ -15,7 +17,7 @@
 void *hashMapInit(HashMap *map) {
     //初始化HashMap
     uint64_t size = 1 << defaultEntrySize;
-    map->list = malloc(sizeof(list) *  size);
+    map->list = lmalloc(sizeof(list) *  size);
     if(map->list == NULL)
         return NULL;
 
@@ -29,7 +31,7 @@ void *hashMapInit(HashMap *map) {
 
 HashMapEntry *newHashMapEntry(void *key, void *value, uint64_t hashcode) {
     /*分配并初始化新的entry*/
-    HashMapEntry *entry = malloc(sizeof(HashMapEntry));
+    HashMapEntry *entry = lmalloc(sizeof(HashMapEntry));
     if(entry == NULL)
         return NULL;
 
@@ -44,7 +46,7 @@ HashMapEntry *newHashMapEntry(void *key, void *value, uint64_t hashcode) {
 HashMap *newHashMap(void) {
     /*分配并初始化HashMap结构*/
 
-    HashMap *map = malloc(sizeof(HashMap));
+    HashMap *map = lmalloc(sizeof(HashMap));
     if(map == NULL)
         return NULL;
 
@@ -92,7 +94,7 @@ int expandHashMap(HashMap *map) {
     list *entry;
     map->len++;
     uint64_t size = 1u << map->len; //计算散列表的大小
-    list *new = malloc(sizeof(list) *  size);
+    list *new = lmalloc(sizeof(list) *  size);
     if(new == NULL)
         return -1;
 
@@ -112,7 +114,7 @@ int expandHashMap(HashMap *map) {
         }
     }
 
-    free(map->list);
+    lfree(map->list);
     map->list = new;
     return 0;
 }
@@ -158,7 +160,7 @@ int __putItemToHashMap(HashMap *map, uint64_t hashcode, void *key, uint64_t len,
 void deleteHashMapEntry(HashMap *map, HashMapEntry * entry) {
     //从散列表map中删除元素entry
     list_del(&entry->list);
-    free(entry);
+    lfree(entry);
     map->count--;
 }
 void *__deleteHashMapItem(HashMap *map, uint64_t hashcode, void *key, uint64_t len, compareFunc equalFunc) {
@@ -189,11 +191,12 @@ void freeHashMap(HashMap *map) {
             //遍历链表，逐个释放元素
             HashMapEntry *mentry = container_of(n,HashMapEntry,list);
             list_del(&mentry->list);
-            free(mentry);
+            lfree(mentry);
+	    n = pos;
         }
     }
-    free(map->list);
-    free(map);
+    lfree(map->list);
+    lfree(map);
 }
 
 

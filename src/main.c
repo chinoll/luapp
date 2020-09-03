@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <xxhash.h>
-
 #include "lbinchunk.h"
 #include "lerror.h"
 #include "opcode.h"
@@ -16,7 +15,7 @@
 #include "hashmap.h"
 #include "gc.h"
 #include "lvalue.h"
-uint64_t period;
+int debug_level;
 void printStack(LuaState * state) {
     uint64_t top = get_top(state);
     for(uint64_t i = 1;i <= top;i++) {
@@ -45,10 +44,7 @@ void printStack(LuaState * state) {
     printf("\n");
 }
 
-void LuaMain(Prototype *proto) {
-    uint32_t nregs = proto->max_stack_size;
-    LuaVM *vm = NewLuaVM(nregs + 8,proto);
-    set_top(&vm->state,nregs);
+/*void LuaMain(Prototype *proto) {
     while(true) {
         uint64_t pc = getPC(&vm->state);
         instruction inst = fetch(&vm->state);
@@ -60,29 +56,29 @@ void LuaMain(Prototype *proto) {
             break;
         }
         if(period < getMillisecond())
-            GC(vm->state.stack);   //进行垃圾回收
+            GC(vm->state->stack);   //进行垃圾回收
     }
-    /*程序运行完毕，回收所有内存*/
-    GCall();
-    freeLuaVM(vm);
-
-}
+}*/
 uint64_t ObjHash(void *obj,uint64_t len,uint64_t seed) {
     return XXH64(obj, sizeof(LuaValue),seed);
 }
 int main(int argc,char *argv[]) {
-
     if(argc < 2)
         return 1;
     FILE *fp = fopen(argv[1],"rb");
     if(fp == NULL)
         return 2;
-
+    debug_level = 0;
     list_init(&rootSet);
-    Prototype *proto = Undump(fp);
+    initStack();
     period = getMillisecond() + 1000;
-    LuaMain(proto);
+    Load(fp,"b");
+    Call(vm->state,0,0);
     fclose(fp);
-    freeProtoType(proto,"");
+    GCall();
+    //printf("%d",list_empty(&rootSet));
+    freeP(global_proto,"");
+    freeLuaVM(vm);
+    freeStack();
     return 0;
 }

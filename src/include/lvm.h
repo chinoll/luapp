@@ -12,10 +12,11 @@
 #define CMode(ins) opcodes[get_opcode(ins)].argCMode
 
 typedef struct luavm {
-    LuaState state;
+    LuaState *state;
 } LuaVM;
-
-typedef void (*instructionAction)(instruction, LuaVM *);
+extern LuaVM *vm;
+extern uint64_t period;
+typedef void (*instructionAction)(instruction);
 typedef enum OpArg {
     //Operand type
             OpArgN,
@@ -34,7 +35,7 @@ typedef struct code {
 } code_struct;
 extern const code_struct codes[];
 
-LuaVM *NewLuaVM(uint64_t stacksize, Prototype *prototype);
-void freeLuaVM(LuaVM *vm);
-void ExecuteInstruction(LuaVM *vm,instruction i);
+LuaVM *NewLuaVM(Prototype *prototype);
+void freeLuaVM(LuaVM *lvm);
+void ExecuteInstruction(LuaVM *lvm,instruction i);
 #endif //LUAPP_LVM_H

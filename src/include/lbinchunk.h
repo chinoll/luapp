@@ -78,7 +78,8 @@ typedef struct __binChunk {
     uint8_t size_upvalues;
     Prototype *main_func;
 } BinChunk;
-
+extern Prototype *global_proto;
+#define DEFAULT_GLOBAL_SOURCE_LEN 4
 void freeBinChunk(BinChunk * bin);
 #define read_byte(fp) (char)fgetc(fp)
 uint32_t read_uint32(FILE *fp);
@@ -90,7 +91,7 @@ uint8_t * read_bytes(FILE *fp,uint64_t n);
 void check_header(FILE *fp);
 #define read_lua_integer(x) read_uint64(x)
 Prototype * Undump(FILE *fp);
-Prototype * read_proto(FILE *fp,char *parent_src);
+Prototype * read_proto(FILE *fp,char *parent_src,int flag);
 uint32_t *read_code(FILE *fp,uint32_t *size);
 Type *read_constants(FILE *fp,uint32_t *len);
 Type read_constant(FILE *fp);
@@ -100,4 +101,7 @@ uint32_t * read_line_info(FILE * fp,uint32_t *len);
 LocVar * read_locvars(FILE * fp,uint32_t *len);
 char ** read_upvalue_names(FILE *fp,uint32_t *size);
 void freeProtoType(Prototype * proto,char * source);
+void initProto(void);
+void freeP(Prototype *proto,char * source);
+void expandGSource(void);
 #endif

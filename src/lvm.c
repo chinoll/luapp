@@ -6,7 +6,10 @@
 #include "lerror.h"
 #include "lstate.h"
 #include "inst.h"
+#include "memory.h"
 
+LuaVM *vm;
+uint64_t period;
 const code_struct codes[] = {
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgR,.argCMode = OpArgN,.opMode = IABC,"MOVE",moveInst},
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgK,.argCMode = OpArgN,.opMode = IABx,"LOADK",loadKInst},
@@ -20,7 +23,7 @@ const code_struct codes[] = {
         {.testFlag = 0,.setAFlag = 0,.argBMode = OpArgU,.argCMode = OpArgN,.opMode = IABC,"SETUPVAL"},
         {.testFlag = 0,.setAFlag = 0,.argBMode = OpArgK,.argCMode = OpArgK,.opMode = IABC,"SETTABLE",setTableInst},
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgU,.argCMode = OpArgU,.opMode = IABC,"NEWTABLE",newTableInst},
-        {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgR,.argCMode = OpArgK,.opMode = IABC,"SELF"},
+        {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgR,.argCMode = OpArgK,.opMode = IABC,"SELF",selfInst},
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgK,.argCMode = OpArgK,.opMode = IABC,"ADD",addInst},
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgK,.argCMode = OpArgK,.opMode = IABC,"SUB",subInst},
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgK,.argCMode = OpArgK,.opMode = IABC,"MUL",mulInst},
@@ -44,36 +47,36 @@ const code_struct codes[] = {
         {.testFlag = 1,.setAFlag = 0,.argBMode = OpArgK,.argCMode = OpArgK,.opMode = IABC,"LE",leInst},
         {.testFlag = 1,.setAFlag = 0,.argBMode = OpArgN,.argCMode = OpArgU,.opMode = IABC,"TEST",testInst},
         {.testFlag = 1,.setAFlag = 1,.argBMode = OpArgR,.argCMode = OpArgU,.opMode = IABC,"TESTSET",testSetInst},
-        {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgU,.argCMode = OpArgU,.opMode = IABC,"CALL"},
-        {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgU,.argCMode = OpArgU,.opMode = IABC,"TAILCALL"},
-        {.testFlag = 0,.setAFlag = 0,.argBMode = OpArgU,.argCMode = OpArgN,.opMode = IABC,"RETURN"},
+        {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgU,.argCMode = OpArgU,.opMode = IABC,"CALL",callInst},
+        {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgU,.argCMode = OpArgU,.opMode = IABC,"TAILCALL",tailcallInst},
+        {.testFlag = 0,.setAFlag = 0,.argBMode = OpArgU,.argCMode = OpArgN,.opMode = IABC,"RETURN",returnInst},
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgR,.argCMode = OpArgN,.opMode = IAsBx,"FORLOOP",forLoopInst},
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgR,.argCMode = OpArgN,.opMode = IAsBx,"FORPREP",forPrepInst},
         {.testFlag = 0,.setAFlag = 0,.argBMode = OpArgN,.argCMode = OpArgU,.opMode = IABC,"TFORCALL"},
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgR,.argCMode = OpArgN,.opMode = IAsBx,"TFORLOOP"},
         {.testFlag = 0,.setAFlag = 0,.argBMode = OpArgU,.argCMode = OpArgU,.opMode = IABC,"SETLIST",setListInst},
-        {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgU,.argCMode = OpArgN,.opMode = IABx,"CLOSURE"},
-        {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgU,.argCMode = OpArgN,.opMode = IABC,"VARARG"},
+        {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgU,.argCMode = OpArgN,.opMode = IABx,"CLOSURE",closureInst},
+        {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgU,.argCMode = OpArgN,.opMode = IABC,"VARARG",varargInst},
         {.testFlag = 0,.setAFlag = 0,.argBMode = OpArgU,.argCMode = OpArgU,.opMode = IAx,"EXTRAARG"},
 };
 
-LuaVM *NewLuaVM(uint64_t stacksize,Prototype *prototype) {
-    LuaState *state = newLuaState(stacksize,prototype);
-    LuaVM *vm = (LuaVM *)malloc(sizeof(LuaVM));
-    vm->state = *state;
-    free(state);
-    if(vm == NULL)
+LuaVM *NewLuaVM(Prototype *prototype) {
+    LuaState *state = newLuaState(prototype);
+    LuaVM *lvm = lmalloc(sizeof(LuaVM));
+    if(lvm == NULL)
         panic(OOM);
+    lvm->state = state;
 
-    return vm;
+    return lvm;
 }
-void freeLuaVM(LuaVM *vm) {
-    freeLuaState((LuaState *)vm);
+void freeLuaVM(LuaVM *lvm) {
+    freeLuaState(lvm->state);
+    free(lvm);
 }
-void ExecuteInstruction(LuaVM *vm,instruction i) {
-    void (*action)(instruction i,LuaVM *) = codes[get_opcode(i)].action;
+void ExecuteInstruction(LuaVM *lvm,instruction i) {
+    void (*action)(instruction i) = codes[get_opcode(i)].action;
     if(action != NULL)
-        action(i,vm);
+        action(i);
     else
         panic(codes[get_opcode(i)].name);
 }

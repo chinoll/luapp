@@ -29,6 +29,8 @@ typedef struct __luavalue {
     uint64_t ref_list_len;              //n叉树的长度
     bool mark;                             //被标记为true时代表该对象无需回收
     list next;
+    int32_t stack_count;
+    bool end_clean;
 }LuaValue;
 
 static inline int typeOf(LuaValue *value) {
@@ -44,7 +46,7 @@ void setLuaValue(LuaValue *val, int type, void *data, uint64_t len);
 void freeLuaValue(LuaValue * val);
 
 LuaValue *newStr(const char *str);
-#define newInt(n) newLuaValue(LUAPP_TINT,(void *)n,sizeof(int64_t))
+#define newInt(n) newLuaValue(LUAPP_TINT,(void *)n,0)
 LuaValue *newFloat(double n);
 LuaValue *NewTable(uint64_t nArr,uint64_t nRec);
 #define newNil() newLuaValue(LUAPP_TNIL,NULL,0)

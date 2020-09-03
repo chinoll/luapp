@@ -19,8 +19,7 @@ uint64_t getMillisecond(void) {
 
 void mark(LuaStack *stack) {
     //标记已死亡的对象
-    LuaStack *stack1 = newLuaStack(512);
-
+    LuaStack *stack1 = newLuaStack(128);
     for(uint64_t i = 1;i <= stack->top ;i++) {
         push(stack1,get(stack,i));  //遍历栈
         LuaValue *node;
@@ -32,10 +31,11 @@ void mark(LuaStack *stack) {
 
             for(uint64_t j = 0;j < node->ref_list_len;j++) {
                 if(node->ref_list[j] != NULL) {
+                    checkStack(stack1,1);
                     push(stack1, node->ref_list[j]);
                     node->ref_list[j]->mark = true;
                     flag = false;
-                }
+                    }
             }
             if(flag)
                 break;
@@ -49,8 +49,9 @@ void sweep(void) {
     list *next = rootSet.next;
     list_for_each(pos,rootSet.next) {
         LuaValue *val = container_of(next,LuaValue,next);
-        if(val->mark == false)
+        if(val->mark == false && val->stack_count == 0){
             freeLuaValue(val);
+	}
         else
             val->mark = false;
         next = pos;

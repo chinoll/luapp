@@ -6,6 +6,11 @@
 #include <string.h>
 #include "lbinchunk.h"
 #include "lerror.h"
+#include "memory.h"
+
+Prototype *global_proto;
+char **global_source;
+int global_source_len;
 
 uint32_t read_uint32(FILE *fp) {
   unsigned ret;
@@ -26,7 +31,7 @@ double read_lua_number(FILE *fp) {
   return x;
 }
 uint8_t * read_bytes(FILE *fp,uint64_t n) {
-  uint8_t * buf = (uint8_t *)malloc(n * sizeof(char) + 1);
+  uint8_t * buf = (uint8_t *)lmalloc(n * sizeof(char) + 1);
   if(buf == NULL) 
     panic(OOM);
   if(fread(buf,1,n,fp) == 0)
@@ -70,18 +75,33 @@ void check_header(FILE *fp) {
   } else if(read_lua_number(fp) != LUAC_NUM){
     panic("float format mismatch!");
   }
-  free(a);
-  free(b);
+  lfree(a);
+  lfree(b);
 }
-Prototype * read_proto(FILE *fp,char *parent_src) {
+Prototype * read_proto(FILE *fp,char *parent_src,int flag) {
   //Get function prototype
   char * source = read_string(fp);
   if(source == NULL || strlen(source) == 0) {
     source = parent_src;
+    if(global_source[global_source_len - 1] != NULL)
+	    expandGSource();
+
+    for(int i = 0;i < global_source_len;i++) {
+	    if(global_source[i] == parent_src)
+		    break;
+    	    if(global_source[i] == NULL) {
+		    global_source[i] = source;
+		    break;
+	    }
+    }
   }
-  Prototype * ret = (Prototype *)malloc(sizeof(Prototype));
+
+  Prototype * ret = (Prototype *)lmalloc(sizeof(Prototype));
   if(ret == NULL)
     panic(OOM);
+  if(flag == 1)
+	  global_proto = ret;
+
   ret->source = source;
   ret->line_def = read_uint32(fp);
   ret->last_line_def = read_uint32(fp);
@@ -102,23 +122,43 @@ Prototype ** read_protos(FILE *fp,char * parent_src,uint32_t  *size) {
   *size = read_uint32(fp);
   if(*size == 0)
     return NULL;
-  Prototype ** protos = (Prototype **)malloc(sizeof(Prototype *) * (*size));
+  Prototype ** protos = (Prototype **)lmalloc(sizeof(Prototype *) * (*size));
   if(protos == NULL)
     panic(OOM);
   for(uint32_t i = 0;i < *size;i++)
-    protos[i] = read_proto(fp,parent_src);
+    protos[i] = read_proto(fp,parent_src,0);
   return protos;
+}
+
+void expandGSource(void) {
+	char ** g = malloc(sizeof(char *) * (global_source_len + 4));
+	if(NULL == g)
+		panic(OOM);
+	global_source_len += 4;
+	memset(g,0, global_source_len);
+	memcpy(g,global_source,sizeof(char *) * (global_source_len - 4));
+	free(global_source);
+	global_source = g;
 }
 
 Prototype * Undump(FILE *fp) {
   check_header(fp);
   read_byte(fp);
-  return read_proto(fp,"");
+
+  global_source = malloc(DEFAULT_GLOBAL_SOURCE_LEN * sizeof(char *));
+  
+  if(global_source == NULL)
+	  panic(OOM);
+  
+  global_source_len = DEFAULT_GLOBAL_SOURCE_LEN;
+  memset(global_source,0,DEFAULT_GLOBAL_SOURCE_LEN * sizeof(char *));
+  
+  return read_proto(fp,"",1);
 }
 uint32_t *read_code(FILE *fp,uint32_t  *size) {
   //Read instruction list
   *size = read_uint32(fp);
-  uint32_t *code = (uint32_t *)malloc(sizeof(uint32_t)* *size);
+  uint32_t *code = (uint32_t *)lmalloc(sizeof(uint32_t)* *size);
   if(code == NULL)
     panic(OOM);
   for(uint32_t i = 0;i < *size;i++) {
@@ -131,7 +171,7 @@ Type * read_constants(FILE *fp,uint32_t * len) {
   *len = read_uint32(fp);
   if(*len == 0)
     return NULL;
-  Type * constants = malloc(sizeof(Type)* (*len));
+  Type * constants = lmalloc(sizeof(Type)* (*len));
   if(constants == NULL)
     panic(OOM);
   for(uint32_t i = 0;i < *len;i++) {
@@ -148,7 +188,7 @@ Type read_constant(FILE *fp) {
     case TAG_NIL:
       break;
     case TAG_BOOLEAN:{
-      uint8_t *n = (uint8_t *)malloc(sizeof(uint64_t));
+      uint8_t *n = (uint8_t *)lmalloc(sizeof(uint64_t));
       if(n == NULL)
         panic(OOM);
       if(read_byte(fp) != 0) {
@@ -162,7 +202,7 @@ Type read_constant(FILE *fp) {
       break;
     }
     case TAG_NUMBER:{
-      double *x = (double *)malloc(sizeof(double));
+      double *x = (double *)lmalloc(sizeof(double));
       if(x == NULL)
         panic(OOM);
       *x = read_lua_number(fp);
@@ -182,7 +222,7 @@ Type read_constant(FILE *fp) {
 Upvalue * read_upvalues(FILE *fp,uint32_t  *len) {
   //Read the Upvalue table
   *len = read_uint32(fp);
-  Upvalue *upvalues = (Upvalue *)malloc(sizeof(Upvalue) * *len);
+  Upvalue *upvalues = (Upvalue *)lmalloc(sizeof(Upvalue) * *len);
   if(upvalues == NULL)
     panic(OOM);
   for(uint32_t i = 0;i < *len;i++) {
@@ -194,7 +234,7 @@ Upvalue * read_upvalues(FILE *fp,uint32_t  *len) {
 
 uint32_t * read_line_info(FILE *fp,uint32_t * len) {
   *len = read_uint32(fp);
-  uint32_t * lineinfo = (uint32_t *)malloc(sizeof(uint32_t *)* (*len));
+  uint32_t * lineinfo = (uint32_t *)lmalloc(sizeof(uint32_t *)* (*len));
   if(lineinfo == NULL)
     panic(OOM);
   for(uint32_t i = 0;i < *len;i++)
@@ -203,7 +243,7 @@ uint32_t * read_line_info(FILE *fp,uint32_t * len) {
 }
 LocVar * read_locvars(FILE *fp,uint32_t  *len) {
   *len = read_uint32(fp);
-  LocVar * locvars = (LocVar *)malloc(sizeof(LocVar) * (*len));
+  LocVar * locvars = (LocVar *)lmalloc(sizeof(LocVar) * (*len));
   if(locvars == NULL)
     panic(OOM);
   for(uint32_t i = 0;i < *len;i++) {
@@ -215,7 +255,7 @@ LocVar * read_locvars(FILE *fp,uint32_t  *len) {
 }
 char ** read_upvalue_names(FILE *fp,uint32_t *size) {
   *size = read_uint32(fp);
-  char ** names = (char **)malloc(sizeof(char *) * (*size));
+  char ** names = (char **)lmalloc(sizeof(char *) * (*size));
   if(names == NULL)
     panic(OOM);
   for(uint32_t i = 0;i < *size;i++)
@@ -229,25 +269,38 @@ void freeConstants(Type * constant) {
       case TAG_INTEGER:
         break;
       default:
-        free(constant->data);
+        lfree(constant->data);
         break;
   }
 }
 void freeLocVars(LocVar * var) {
-  free(var->var_name);
+  lfree(var->var_name);
 }
-#define freeUpvalueName(p) free(p)
-
+#define freeUpvalueName(p) lfree(p)
+void freeP(Prototype *proto,char * source) {
+  freeProtoType(proto,source);
+  for(int i = 0;i < global_source_len;i++) {
+	  if(global_source[i] != NULL) {
+		  lfree(global_source[i]);
+	  }
+  }
+  lfree(global_source);
+}
 void freeProtoType(Prototype * proto,char * source) {
   //释放Prototype结构体
-  char *s;
   if(source != proto->source) {
-    s = proto->source;
-    free(proto->source);
+    int flag = 1;
+    for(int i = 0;i < global_source_len;i++)
+	    if(global_source[i] == proto->source)
+			    flag = 0;
+    if(flag) {
+	    
+    	lfree(proto->source);
+    }
   }
-  free(proto->code);
-  free(proto->line_info);
-  free(proto->upvalues);
+  lfree(proto->code);
+  lfree(proto->line_info);
+  lfree(proto->upvalues);
   for(uint64_t i = 0;i < proto->constants_len;i++)
     freeConstants(proto->constants + i);
   for(uint64_t i = 0;i < proto->loc_vars_len;i++)
@@ -256,9 +309,10 @@ void freeProtoType(Prototype * proto,char * source) {
     freeProtoType(proto->protos[i],source);
   for(uint64_t i = 0;i < proto->upvalue_names_len;i++)
     freeUpvalueName(proto->upvalue_names[i]);
-  free(proto->protos);
-  free(proto->upvalue_names);
-  free(proto->loc_vars);
-  free(proto->constants);
-  free(proto);
+  if(proto->protos != NULL)
+  	lfree(proto->protos);
+  lfree(proto->upvalue_names);
+  lfree(proto->loc_vars);
+  lfree(proto->constants);
+  lfree(proto);
 }

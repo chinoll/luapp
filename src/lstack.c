@@ -11,22 +11,70 @@
 #include "consts.h"
 #include "gc.h"
 #include "hashmap.h"
+#include "memory.h"
+LuaStack **global_stack;
+int global_stack_size;
+
+void initStack(void) {
+	global_stack = lmalloc(sizeof(LuaStack *) * DEFAULT_GLOBAL_STACK_SIZE);
+	if(NULL == global_stack)
+		panic(OOM);
+	memset(global_stack, 0, sizeof(LuaStack *) * DEFAULT_GLOBAL_STACK_SIZE);
+	global_stack_size = DEFAULT_GLOBAL_STACK_SIZE;
+}
+
+void expandStack(void) {
+	global_stack_size += 8;
+	LuaStack **g = lmalloc(sizeof(LuaStack *) * global_stack_size);
+	if(NULL == g)
+		panic(OOM);
+	memset(g, 0, sizeof(LuaStack *) * global_stack_size);
+	memcpy(g, global_stack,sizeof(LuaStack *) * (global_stack_size - 8));
+	lfree(global_stack);
+	global_stack = g;
+}
+
+void freeStack(void) {
+	for(int i = 0;i < global_stack_size;i++){
+		if(NULL == global_stack[i]){
+			break;
+		}
+		freeLuaStack(global_stack[i]);
+	}
+	lfree(global_stack);
+}
 
 LuaStack * newLuaStack(uint64_t size) {
-    LuaStack * s = (LuaStack *)malloc(sizeof(LuaStack));
-    if(s == NULL)
+    LuaStack * s = (LuaStack *)lmalloc(sizeof(LuaStack));
+    if(NULL == s)
         panic(OOM);
-    s->slots = (LuaValue **)malloc(sizeof(uint64_t *) * size);
-    memset(s->slots,0, sizeof(uint64_t *) * size);
+    s->slots = (LuaValue **)lmalloc(sizeof(LuaValue *) * size);
+    memset(s->slots,0, sizeof(LuaValue *) * size);
 
     s->top = 0;
     s->stack_len = size;
+    s->pc = 0;
+    s->prev = NULL;
+    s->lua_closure = NULL;
+    s->varargs = NULL;
+    s->varargs_len = 0;
+    for(int i = 0;i < global_stack_size;i++) {
+	    if(NULL == global_stack[i]) {
+		    global_stack[i] = s;
+		    break;
+	    }
+	    if(i == (global_stack_size - 1))
+		    expandStack();
+    }
     return s;
 }
 
 void freeLuaStack(LuaStack * stack) {
-    free(stack->slots);
-    free(stack);
+    lfree(stack->slots);
+    lfree(stack);
+    for(int i = 0;i < global_stack_size;i++)
+	    if(global_stack[i] == stack)
+		    global_stack[i] = NULL;
 }
 
 void checkStack (LuaStack * stack,uint64_t n) {
@@ -38,22 +86,27 @@ void checkStack (LuaStack * stack,uint64_t n) {
     uint64_t len = stack->stack_len - stack->top;
     LuaValue **s = NULL;
     if(len < n) {
-        s = (LuaValue **)malloc(sizeof(LuaValue *) * (stack->stack_len + n));
+        s = lmalloc(sizeof(LuaValue *) * (stack->stack_len + n));
         if(s == NULL)
             panic(OOM);
-        memcpy(s,stack->slots, sizeof(void *) * (stack->top - 1));
-        memset(s + stack->top - 1,0,sizeof(void *) * (stack->stack_len + n));
+        memcpy(s,stack->slots, sizeof(void *) * (stack->top));
+        memset(s + stack->top,0,sizeof(void *) *n);
 
-        free(stack->slots);
+        lfree(stack->slots);
         stack->slots = s;
+    	stack->stack_len += n;
     }
 }
 void push (LuaStack * stack,LuaValue *val) {
     if (stack->top == stack->stack_len) {
         panic("stack overflow!");
     }
+    if(val == NULL)
+	    printf("ERROR!!!");
     stack->slots[stack->top] = val;
     stack->top++;
+    if(val != NULL)
+    	val->stack_count++;
 }
 LuaValue * pop(LuaStack *stack) {
     if(stack->top < 1) {
@@ -62,6 +115,7 @@ LuaValue * pop(LuaStack *stack) {
     stack->top--;
     LuaValue * val = stack->slots[stack->top];
     stack->slots[stack->top] = NULL;
+    val->stack_count--;
     return val;
 }
 uint64_t absIndex(LuaStack * stack,int64_t idx) {
@@ -85,10 +139,11 @@ LuaValue *  get(LuaStack * stack,int64_t idx) {
         return (LuaValue *)(stack->slots[absidx - 1]);
     return NULL;
 }
-void set(LuaStack *stack,int64_t idx,LuaValue * val) {
+void  set(LuaStack *stack,int64_t idx,LuaValue * val) {
     uint64_t absidx = absIndex(stack,idx);
     if(isValid(stack,idx)) {
         stack->slots[absidx - 1] = val;
+    	val->stack_count++;
         return;
     }
     panic("invalid index");
@@ -102,5 +157,33 @@ void reverse(LuaStack * stack,int64_t from,int64_t to) {
         slots[to] = tmp;
         from++;
         to--;
+    }
+}
+
+LuaValue **popN(LuaStack *stack,int64_t n) {
+    LuaValue **vals = lmalloc(sizeof(LuaValue *) * (n + 1));
+
+    if(vals == NULL)
+        panic(OOM);
+    vals[n] = NULL;
+    for(int64_t i = n - 1;i >= 0;i--)
+        vals[i] = pop(stack);
+    
+    return vals;
+}
+
+void pushN(LuaStack *stack,LuaValue **vals,int64_t vals_len,int64_t n) {
+    if(vals_len < 0)
+        vals_len = 0;
+    if(n < 0)
+        n = vals_len;
+    
+
+    for(int64_t i = 0;i < n;i++) {
+        if(i < vals_len)
+            push(stack,vals[i]);
+        else
+            push(stack,newNil());
+        
     }
 }

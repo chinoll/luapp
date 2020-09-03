@@ -11,6 +11,10 @@
 #include "convert.h"
 #include "lbinchunk.h"
 #include "table.h"
+#include "lvm.h"
+#include "memory.h"
+#include "gc.h"
+
 operator operators[] = {//算术运算函数
         {iadd,fadd},
         {isub,fsub},
@@ -33,27 +37,22 @@ static bool __eq(LuaValue *a,LuaValue *b);
 static bool __lt(LuaValue *a,LuaValue *b);
 static bool __le(LuaValue *a,LuaValue *b);
 
-LuaState * newLuaState(uint64_t stacksize,Prototype *prototype) {
-    LuaState * state = (LuaState *)malloc(sizeof(LuaState));
+LuaState * newLuaState(Prototype *prototype) {
+    LuaState * state = (LuaState *)lmalloc(sizeof(LuaState));
     if(state == NULL)
         panic(OOM);
-    
-    state->stack = newLuaStack(stacksize);
-    state->prototype = prototype;
-    state->pc = 0;
-
+    state->stack = newLuaStack(DefaultStackSize);
     return state;
 }
 void freeLuaState(LuaState * state) {
-    freeLuaStack(state->stack);
-    free(state);
+    LuaStack *s = state->stack;
+    for(LuaStack *stack = state->stack->prev;stack != NULL;stack = state->stack->prev) {
+    	freeLuaStack(s);
+	s = stack;
+    }
+    lfree(state);
 }
 
-void popN(LuaState * state,uint64_t n) {
-    //从栈顶弹出n个值
-    for(uint64_t i = 0;i < n;i++)
-        pop(state->stack);
-}
 void copy_value(LuaState * state,int64_t fromIdx,int64_t toIdx) {
     //将一个值复制到另一个位置
     LuaValue *val = get(state->stack,fromIdx);
@@ -91,9 +90,9 @@ void push_string(LuaState * state,char * s) {
 void replace(LuaState * state,int64_t idx) {
     //将栈顶的值弹出，然后写入指定位置
     LuaValue * val = pop(state->stack);
-    uint64_t top = state->stack->top;
-    if(top < idx && top < state->stack->stack_len)
-        set_top(state,state->stack->top + 1);
+    //uint64_t top = state->stack->top;
+    //if(top < idx && top < state->stack->stack_len)
+    //    set_top(state,state->stack->top + 1);
     set(state->stack,idx,val);
 
 }
@@ -113,7 +112,7 @@ void rotate(LuaState * state,int64_t idx,int64_t n) {
 void remove_value(LuaState * state,int64_t idx) {
     //删除指定索引处的值
     rotate(state,idx,-1);
-    popN(state,1);
+    popN(state->stack,1);
 
 }
 
@@ -145,6 +144,8 @@ char * type_name(int tp) {
             return "function";
         case LUAPP_TTHREAD:
             return "thread";
+	case LUAPP_TCLOSURE:
+	    return "closure";
         default:
             return "userdata";
     }
@@ -410,11 +411,11 @@ void Concat(LuaState * state,int64_t n,int32_t b) {
                 char *str1,*str2;
                 str1 = to_string(state,-2);
                 str2 = to_string(state,-1);
-                char * str = malloc(sizeof(char)*strlen(str1) + sizeof(char)*strlen(str2) + 1);
+                char * str = lmalloc(sizeof(char)*strlen(str1) + sizeof(char)*strlen(str2) + 1);
                 if(str == NULL)
                     panic(OOM);
 
-                //free(str2);
+                //lfree(str2);
                 strcpy(str,str1);
                 strcpy(str + strlen(str1),str2);
 
@@ -423,7 +424,7 @@ void Concat(LuaState * state,int64_t n,int32_t b) {
 
                 LuaValue * val1 = newStr(str);
                 push(state->stack,val1);
-                free(str);
+                lfree(str);
                 continue;
             }
             panic("concatenation error!");
@@ -495,4 +496,92 @@ void SetI(LuaState *state, const int64_t idx, int64_t i) {
     LuaValue *v = pop(state->stack);
     LuaValue *k = newInt(i);
     __setTable(t,k,v);
+}
+
+void pushLuaStack(LuaState *state,LuaStack *stack) {
+    stack->prev = state->stack;
+    state->stack = stack;
+}
+
+void popLuaStack(LuaState *state) {
+    LuaStack *stack = state->stack;
+    state->stack = state->stack->prev;
+    stack->prev = NULL;
+}
+
+void runLuaClosure(LuaState *state) {
+    while(true) {
+        uint64_t pc = getPC(state);
+        instruction inst = fetch(state);
+        ExecuteInstruction(vm, inst);
+        if(debug_level > 1) {
+            printf("[%ld] %s ", pc + 1, codes[get_opcode(inst)].name);
+            printStack(state);
+        }
+        //if(period < getMillisecond())
+            GC(state->stack);   //进行垃圾回收
+        if(get_opcode(inst) == OP_RETURN)
+            break;
+    }
+}
+
+void callLuaRunClosure(LuaState *state,int64_t nargs,int64_t nresults,Closure *closure) {
+    uint8_t nregs = closure->proto->max_stack_size;
+    uint8_t nparams = closure->proto->num_params;
+    LuaStack *newStack = newLuaStack(nregs + DefaultStackSize);
+    newStack->lua_closure = closure;
+
+    LuaValue **funcAndarg = popN(state->stack,nparams);
+    pushN(newStack,funcAndarg + 1,nparams - 1,nparams);
+
+    if(nargs > nparams && (closure->proto->is_vararg == 1)){
+            newStack->varargs = funcAndarg + 1;
+            newStack->varargs_len = 0;
+    }
+    if(newStack->varargs_len < 0)
+        newStack->varargs_len = 0;
+    pushLuaStack(state,newStack);
+    set_top(state,nregs);
+    runLuaClosure(state);
+    popLuaStack(state);
+
+    if(nresults != 0) {
+        LuaValue **vals = popN(newStack,newStack->top - nregs);
+        int64_t len;
+        for(len = 0;vals[len] != NULL;len++)
+            continue;
+        checkStack(state->stack,len);
+        pushN(state->stack,vals,len,len);
+        lfree(vals);
+    }
+    lfree(funcAndarg);
+}
+int64_t Load(FILE *chunk,char *mode) {
+    Prototype *proto = Undump(chunk);
+    vm = NewLuaVM(proto);
+    push(vm->state->stack,newLuaValue(LUAPP_TCLOSURE,newLuaClosure(proto),sizeof(Closure)));
+    return 0;
+}
+
+void Call(LuaState *state,int64_t nargs,int64_t nresults) {
+    LuaValue *val = get(state->stack,-(nargs + 1));
+    int jk = 0;
+    if(val != NULL && val->type == LUAPP_TCLOSURE) {
+        Closure *closure = (Closure *)val->data;
+	jk++;
+        if(debug_level > 0)
+            printf("call %s<%d,%d>\n",closure->proto->source,closure->proto->line_def,closure->proto->last_line_def);
+        callLuaRunClosure(state,nargs,nresults,closure);
+    } else {
+        printf("not function!\n");
+    }
+}
+
+void LoadVararg(LuaState *state,int64_t n) {
+    if(n < 0) {
+        n = state->stack->varargs_len;
+    }
+
+    checkStack(state->stack,n);
+    pushN(state->stack,state->stack->varargs,state->stack->varargs_len,n);
 }

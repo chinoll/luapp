@@ -8,16 +8,17 @@
 #include "table.h"
 #include "lvalue.h"
 #include "consts.h"
+#include "memory.h"
 
 LuaTable *newLuaTable(uint64_t nArr,uint64_t nRec) {
     //分配并初始化一个table
-    LuaTable *table = malloc(sizeof(LuaTable));
+    LuaTable *table = lmalloc(sizeof(LuaTable));
     memset(table,0, sizeof(LuaTable));
     if(table == NULL)
         panic(OOM);
 
     if(nArr > 0) {//数组的长度
-        table->arr = (LuaValue **)malloc(sizeof(LuaValue *) * nArr);
+        table->arr = (LuaValue **)lmalloc(sizeof(LuaValue *) * nArr);
         table->arr_len = nArr;
         table->free_arr_count = nArr;
         memset(table->arr,0, sizeof(LuaValue *) * nArr);
@@ -79,7 +80,7 @@ static int __putItemToMap(LuaTable *table,LuaValue *key,LuaValue *value) {
 static void __shrinkArray(LuaTable *table) {
     for(uint64_t i = table->arr_len - 1;i > 0;i--) {
         if(table->arr[i] != NULL) {
-            LuaValue **arr = malloc(i * sizeof(LuaValue *));
+            LuaValue **arr = lmalloc(i * sizeof(LuaValue *));
             if(arr == NULL)
                 panic(OOM);
             memcpy(arr,table->arr,i * sizeof(LuaTable *));
@@ -93,12 +94,12 @@ static void __expandArray(LuaTable *table) {
      */
     uint64_t old = table->arr_len;
     table->arr_len = (table->arr_len/2 + table->arr_len);
-    LuaValue **arr = (LuaValue **)malloc(table->arr_len * sizeof(LuaValue *));
+    LuaValue **arr = (LuaValue **)lmalloc(table->arr_len * sizeof(LuaValue *));
     if(arr == NULL)
         panic(OOM);
     memset(arr, 0, table->arr_len * sizeof(LuaValue *));
     memcpy(arr,table->arr,old * sizeof(LuaValue *));
-    free(table->arr);
+    lfree(table->arr);
     table->arr = arr;
     table->free_arr_count =  table->arr_len - (old - table->free_arr_count);    //计算空闲元素个数
 }
@@ -120,7 +121,7 @@ static int __putItemToArray(LuaTable *table,LuaValue *key,LuaValue *value) {
     return i;
 }
 
-static int __putItemToTable(LuaTable *table,LuaValue *key,LuaValue *value) {
+static int __putItemToTable(LuaValue *table,LuaValue *key,LuaValue *value) {
     /*将一个值放入table中
      * 如果key的类型时数字并且值小于数组长度时，将值放入数组，
      * 否则将值反如散列表中
@@ -129,10 +130,24 @@ static int __putItemToTable(LuaTable *table,LuaValue *key,LuaValue *value) {
         panic("Key can't Nil");
     if(value->type == LUAPP_TNIL)
         return -1;
-    if(key->type == LUAPP_TINT && (uint64_t)key->data <= table->arr_len)
-        return __putItemToArray(table,key,value);
-    else
-         __putItemToMap(table,key,value);
+    if(key->type == LUAPP_TINT && (uint64_t)key->data <= ((LuaTable *)table->data)->arr_len)
+        return __putItemToArray(table->data,key,value);
+    else {
+
+    	LuaValue *val;
+    	if(0 == table->len)
+		val = newLuaValue(key->type,key->data,0);
+	else {
+    		void *data = lmalloc(key->len);
+	    	if(NULL == data)
+		    panic(OOM);
+	    	memcpy(data,key->data,key->len);
+    		val = newLuaValue(key->type,data,key->len);
+    	}
+	addRef(val,table);
+	//printf("stack:%d\n",table->stack_count);
+         __putItemToMap(table->data,val,value);
+    }
     return -1;
 }
 
@@ -140,7 +155,7 @@ void putItemTable(LuaValue *table,LuaValue *key,LuaValue *value) {
     /*
      * 将元素放入table中
      */
-    if(__putItemToTable((LuaTable *)table->data,key,value) == 0) {
+    if(__putItemToTable(table,key,value) == 0) {
         //如果元素被放入数组中，则长度加1,如果被放入散列表中，则长度不增加
         table->len++;
     }
@@ -187,7 +202,9 @@ uint64_t tableLen(LuaValue *val) {
 void freeLuaTable(void *ptr) {
     //释放table
     LuaTable *table = (LuaTable *)ptr;
-    free(table->arr);
-    freeHashMap(table->map);
-    free(table);
+    if(table->arr != NULL)
+    	lfree(table->arr);
+    if(table->map != NULL)
+    	freeHashMap(table->map);
+    lfree(table);
 }

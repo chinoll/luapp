@@ -5,54 +5,61 @@
 #include "lvm.h"
 
 //移动和跳转指令
-void moveInst(instruction i,LuaVM *vm);
-void jmpInst(instruction i,LuaVM *vm);
+void moveInst(instruction i);
+void jmpInst(instruction i);
 
 //加载指令
-void loadNilInst(instruction i,LuaVM *vm);
-void loadBoolInst(instruction i,LuaVM *vm);
-void loadKInst(instruction i,LuaVM *vm);
-void loadKxInst(instruction i,LuaVM *vm);
+void loadNilInst(instruction i);
+void loadBoolInst(instruction i);
+void loadKInst(instruction i);
+void loadKxInst(instruction i);
 
 //算术运算指令
-void addInst(instruction i,LuaVM *vm);
-void subInst(instruction i,LuaVM *vm);
-void mulInst(instruction i,LuaVM *vm);
-void modInst(instruction i,LuaVM *vm);
-void powInst(instruction i,LuaVM *vm);
-void divInst(instruction i,LuaVM *vm);
-void idivInst(instruction i,LuaVM *vm);
-void bandInst(instruction i,LuaVM *vm);
-void borInst(instruction i,LuaVM *vm);
-void bxorInst(instruction i,LuaVM *vm);
-void shlInst(instruction i,LuaVM *vm);
-void shrInst(instruction i,LuaVM *vm);
-void unmInst(instruction i,LuaVM *vm);
-void bnotInst(instruction i,LuaVM *vm);
+void addInst(instruction i);
+void subInst(instruction i);
+void mulInst(instruction i);
+void modInst(instruction i);
+void powInst(instruction i);
+void divInst(instruction i);
+void idivInst(instruction i);
+void bandInst(instruction i);
+void borInst(instruction i);
+void bxorInst(instruction i);
+void shlInst(instruction i);
+void shrInst(instruction i);
+void unmInst(instruction i);
+void bnotInst(instruction i);
 
 
 //长度和拼接指令
-void lenInst(instruction i,LuaVM *vm);
-void concatInst(instruction i,LuaVM *vm);
+void lenInst(instruction i);
+void concatInst(instruction i);
 
 //比较指令
-void eqInst(instruction i,LuaVM *vm);
-void ltInst(instruction i,LuaVM *vm);
-void leInst(instruction i,LuaVM *vm);
+void eqInst(instruction i);
+void ltInst(instruction i);
+void leInst(instruction i);
 
 //逻辑运算指令
-void notInst(instruction i,LuaVM *vm);
+void notInst(instruction i);
 
-void testSetInst(instruction i,LuaVM *vm);
-void testInst(instruction i,LuaVM *vm);
+void testSetInst(instruction i);
+void testInst(instruction i);
 
 //for循环指令
-void forPrepInst(instruction i,LuaVM *vm);
-void forLoopInst(instruction i,LuaVM *vm);
+void forPrepInst(instruction i);
+void forLoopInst(instruction i);
 
-void getTableInst(instruction i,LuaVM *vm);
-void setTableInst(instruction i,LuaVM *vm);
-void newTableInst(instruction i,LuaVM *vm);
-void setListInst(instruction i,LuaVM *vm);
+void getTableInst(instruction i);
+void setTableInst(instruction i);
+void newTableInst(instruction i);
+void setListInst(instruction i);
 
+//call
+void callInst(instruction i);
+void returnInst(instruction i);
+void varargInst(instruction i);
+void tailcallInst(instruction i);
+void selfInst(instruction i);
+void closureInst(instruction i);
 #endif //LUAPP_INST_H
