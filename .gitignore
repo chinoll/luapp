@@ -1,5 +1,5 @@
-.vscode/settings.json
-.vscode/launch.json
+.vscode
+.vscode
 CMakeFiles
 CmakeCache.txt
 cmake_install.cmake
