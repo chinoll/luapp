@@ -12,37 +12,9 @@
 #include "gc.h"
 #include "hashmap.h"
 #include "memory.h"
+#include "misc.h"
 LuaStack **global_stack;
 int global_stack_size;
-
-void initStack(void) {
-	global_stack = lmalloc(sizeof(LuaStack *) * DEFAULT_GLOBAL_STACK_SIZE);
-	if(NULL == global_stack)
-		panic(OOM);
-	memset(global_stack, 0, sizeof(LuaStack *) * DEFAULT_GLOBAL_STACK_SIZE);
-	global_stack_size = DEFAULT_GLOBAL_STACK_SIZE;
-}
-
-void expandStack(void) {
-	global_stack_size += 8;
-	LuaStack **g = lmalloc(sizeof(LuaStack *) * global_stack_size);
-	if(NULL == g)
-		panic(OOM);
-	memset(g, 0, sizeof(LuaStack *) * global_stack_size);
-	memcpy(g, global_stack,sizeof(LuaStack *) * (global_stack_size - 8));
-	lfree(global_stack);
-	global_stack = g;
-}
-
-void freeStack(void) {
-	for(int i = 0;i < global_stack_size;i++){
-		if(NULL == global_stack[i]){
-			break;
-		}
-		freeLuaStack(global_stack[i]);
-	}
-	lfree(global_stack);
-}
 
 LuaStack * newLuaStack(uint64_t size) {
     LuaStack * s = (LuaStack *)lmalloc(sizeof(LuaStack));
@@ -64,7 +36,7 @@ LuaStack * newLuaStack(uint64_t size) {
 		    break;
 	    }
 	    if(i == (global_stack_size - 1))
-		    expandStack();
+		    EXPANDVALUE(global_stack, global_stack_size);
     }
     return s;
 }
@@ -101,13 +73,13 @@ void push (LuaStack * stack,LuaValue *val) {
     if (stack->top == stack->stack_len) {
         panic("stack overflow!");
     }
-    if(val == NULL)
-	    printf("ERROR!!!");
+
     stack->slots[stack->top] = val;
     stack->top++;
     if(val != NULL)
     	val->stack_count++;
 }
+
 LuaValue * pop(LuaStack *stack) {
     if(stack->top < 1) {
         panic("stack underflow!");

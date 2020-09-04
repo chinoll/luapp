@@ -90,9 +90,6 @@ void push_string(LuaState * state,char * s) {
 void replace(LuaState * state,int64_t idx) {
     //将栈顶的值弹出，然后写入指定位置
     LuaValue * val = pop(state->stack);
-    //uint64_t top = state->stack->top;
-    //if(top < idx && top < state->stack->stack_len)
-    //    set_top(state,state->stack->top + 1);
     set(state->stack,idx,val);
 
 }
@@ -144,8 +141,8 @@ char * type_name(int tp) {
             return "function";
         case LUAPP_TTHREAD:
             return "thread";
-	case LUAPP_TCLOSURE:
-	    return "closure";
+	    case LUAPP_TCLOSURE:
+	        return "closure";
         default:
             return "userdata";
     }
@@ -518,7 +515,7 @@ void runLuaClosure(LuaState *state) {
             printf("[%ld] %s ", pc + 1, codes[get_opcode(inst)].name);
             printStack(state);
         }
-        //if(period < getMillisecond())
+        if(period < getMillisecond())
             GC(state->stack);   //进行垃圾回收
         if(get_opcode(inst) == OP_RETURN)
             break;
@@ -565,12 +562,9 @@ int64_t Load(FILE *chunk,char *mode) {
 
 void Call(LuaState *state,int64_t nargs,int64_t nresults) {
     LuaValue *val = get(state->stack,-(nargs + 1));
-    int jk = 0;
     if(val != NULL && val->type == LUAPP_TCLOSURE) {
         Closure *closure = (Closure *)val->data;
-	jk++;
-        if(debug_level > 0)
-            printf("call %s<%d,%d>\n",closure->proto->source,closure->proto->line_def,closure->proto->last_line_def);
+        printf("call %s<%d,%d>\n",closure->proto->source,closure->proto->line_def,closure->proto->last_line_def);
         callLuaRunClosure(state,nargs,nresults,closure);
     } else {
         printf("not function!\n");

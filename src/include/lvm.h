@@ -14,8 +14,9 @@
 typedef struct luavm {
     LuaState *state;
 } LuaVM;
+
 extern LuaVM *vm;
-extern uint64_t period;
+
 typedef void (*instructionAction)(instruction);
 typedef enum OpArg {
     //Operand type

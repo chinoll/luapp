@@ -9,7 +9,7 @@
 #include "memory.h"
 
 LuaVM *vm;
-uint64_t period;
+
 const code_struct codes[] = {
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgR,.argCMode = OpArgN,.opMode = IABC,"MOVE",moveInst},
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgK,.argCMode = OpArgN,.opMode = IABx,"LOADK",loadKInst},

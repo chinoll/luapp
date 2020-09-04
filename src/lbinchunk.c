@@ -7,7 +7,7 @@
 #include "lbinchunk.h"
 #include "lerror.h"
 #include "memory.h"
-
+#include "misc.h"
 Prototype *global_proto;
 char **global_source;
 int global_source_len;
@@ -144,15 +144,7 @@ void expandGSource(void) {
 Prototype * Undump(FILE *fp) {
   check_header(fp);
   read_byte(fp);
-
-  global_source = malloc(DEFAULT_GLOBAL_SOURCE_LEN * sizeof(char *));
-  
-  if(global_source == NULL)
-	  panic(OOM);
-  
-  global_source_len = DEFAULT_GLOBAL_SOURCE_LEN;
-  memset(global_source,0,DEFAULT_GLOBAL_SOURCE_LEN * sizeof(char *));
-  
+  INITVALUE(global_source, global_source_len, DEFAULT_GLOBAL_SOURCE_LEN);
   return read_proto(fp,"",1);
 }
 uint32_t *read_code(FILE *fp,uint32_t  *size) {
@@ -279,12 +271,7 @@ void freeLocVars(LocVar * var) {
 #define freeUpvalueName(p) lfree(p)
 void freeP(Prototype *proto,char * source) {
   freeProtoType(proto,source);
-  for(int i = 0;i < global_source_len;i++) {
-	  if(global_source[i] != NULL) {
-		  lfree(global_source[i]);
-	  }
-  }
-  lfree(global_source);
+  FREEVALUE(global_source, global_source_len, lfree);
 }
 void freeProtoType(Prototype * proto,char * source) {
   //释放Prototype结构体

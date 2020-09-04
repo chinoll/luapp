@@ -10,6 +10,8 @@
 #include "lstack.h"
 
 list rootSet;
+uint64_t period;
+
 uint64_t getMillisecond(void) {
     //获取时间戳
     struct timeval tv;
@@ -44,7 +46,7 @@ void mark(LuaStack *stack) {
     freeLuaStack(stack1);
 }
 void sweep(void) {
-    //清楚对象
+    //清除对象
     list *pos;
     list *next = rootSet.next;
     list_for_each(pos,rootSet.next) {
@@ -71,4 +73,8 @@ void GCall(void) {
         freeLuaValue(val);
         n = pos;
     }
+}
+
+void update_period(void) {
+    period += getMillisecond() + GCPERIOD;
 }

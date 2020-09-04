@@ -127,6 +127,7 @@ void __setTable(LuaValue *t,LuaValue *k,LuaValue *v);
 void SetTable(LuaState *state, int64_t idx);
 void SetI(LuaState *state, int64_t idx, int64_t i);
 
+//函数调用相关
 void callLuaClosure(LuaState *state,int64_t nargs,int64_t nresults,Closure *closure);
 int64_t Load(FILE *fp, char *mode);
 void Call(LuaState *state,int64_t nargs, int64_t nresults);

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.13)
 project(Lua++)
 aux_source_directory(. SRC_DIR)
 include_directories(include)

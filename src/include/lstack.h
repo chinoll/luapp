@@ -17,6 +17,8 @@ typedef  struct __lua_stack {
     uint64_t top;           //stack top index
     uint64_t pc;
 } LuaStack;
+extern int global_stack_size;
+extern LuaStack **global_stack;
 #define luaStackEmpty(stack) ((stack)->top == 0)
 LuaStack * newLuaStack(uint64_t size);
 void freeLuaStack(LuaStack * stack);
@@ -30,6 +32,4 @@ void set(LuaStack *stack,int64_t idx,LuaValue *val);
 void reverse(LuaStack * stack,int64_t from,int64_t to);
 LuaValue **popN(LuaStack *stack,int64_t n);
 void pushN(LuaStack *stack,LuaValue **vals,int64_t vals_len,int64_t n);
-void initStack(void);
-void freeStack(void);
 #endif //LUAPP_LSTACK_H
