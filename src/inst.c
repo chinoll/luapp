@@ -321,7 +321,7 @@ void selfInst(instruction i) {
 }
 void LoadProto(int32_t idx) {
     Prototype *proto = vm->state->stack->lua_closure->proto->protos[idx];
-    Closure *closure = newLuaClosure(proto);
+    Closure *closure = newLuaClosure(proto,NULL);
     push(vm->state->stack,newLuaValue(LUAPP_TCLOSURE,closure,sizeof(Closure)));
 }
 void closureInst(instruction i) {
@@ -341,4 +341,15 @@ void varargInst(instruction i) {
         LoadVararg(vm->state,ins.b - 1);
         __popResults(ins.a,ins.b);
     }
+}
+
+void getTabUpInst(instruction i) {
+    struct code_format ins = ABC(i);
+    ins.a++;
+
+    pushGlobalTable(vm->state);
+    getRK(vm->state, ins.c);
+    GetTable(vm->state, -2);
+    replace(vm->state, ins.a);
+    pop(vm->state->stack);
 }

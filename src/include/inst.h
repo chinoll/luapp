@@ -62,4 +62,5 @@ void varargInst(instruction i);
 void tailcallInst(instruction i);
 void selfInst(instruction i);
 void closureInst(instruction i);
+void getTabUpInst(instruction i);
 #endif //LUAPP_INST_H

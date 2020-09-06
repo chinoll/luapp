@@ -17,7 +17,7 @@ const code_struct codes[] = {
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgU,.argCMode = OpArgU,.opMode = IABC,"LOADBOOL",loadBoolInst},
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgU,.argCMode = OpArgN,.opMode = IABC,"LOADNIL",loadNilInst},
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgU,.argCMode = OpArgN,.opMode = IABC,"GETUPVAL"},
-        {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgU,.argCMode = OpArgK,.opMode = IABC,"GETTABUP"},
+        {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgU,.argCMode = OpArgK,.opMode = IABC,"GETTABUP",getTabUpInst},
         {.testFlag = 0,.setAFlag = 1,.argBMode = OpArgR,.argCMode = OpArgK,.opMode = IABC,"GETTABLE",getTableInst},
         {.testFlag = 0,.setAFlag = 0,.argBMode = OpArgK,.argCMode = OpArgK,.opMode = IABC,"SETTABUP"},
         {.testFlag = 0,.setAFlag = 0,.argBMode = OpArgU,.argCMode = OpArgN,.opMode = IABC,"SETUPVAL"},

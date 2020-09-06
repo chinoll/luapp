@@ -135,9 +135,9 @@ static int __putItemToTable(LuaValue *table,LuaValue *key,LuaValue *value) {
     else {
 
     	LuaValue *val;
-    	if(0 == table->len)
-		val = newLuaValue(key->type,key->data,0);
-	else {
+    	if(0 == key->len)
+		    val = newLuaValue(key->type,key->data,0);
+	    else {
     		void *data = lmalloc(key->len);
 	    	if(NULL == data)
 		    panic(OOM);

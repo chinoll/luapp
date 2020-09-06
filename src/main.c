@@ -16,6 +16,7 @@
 #include "gc.h"
 #include "lvalue.h"
 #include "misc.h"
+#include "consts.h"
 int debug_level;
 
 void printStack(LuaState * state) {
@@ -50,6 +51,20 @@ uint64_t ObjHash(void *obj,uint64_t len,uint64_t seed) {
     return XXH64(obj, sizeof(LuaValue),seed);
 }
 
+int print(LuaState *ls) {
+    int nargs = get_top(ls);
+    for(int j = 1;j <= nargs;j++) {
+        if(isBool(ls, j))
+            printf("%d",to_bool(ls,j));
+        else if(isString(ls,j))
+            printf(to_string(ls,j));
+        else
+            printf(type_name(type(ls,j)));
+    }
+    printf("\n");
+    return 0;
+}
+
 int main(int argc,char *argv[]) {
     if(argc < 2)
         return 1;
@@ -60,8 +75,8 @@ int main(int argc,char *argv[]) {
     list_init(&rootSet);
     INITVALUE(global_stack, global_stack_size, DEFAULT_GLOBAL_STACK_SIZE);
     period = getMillisecond() + 1000;
-
     Load(fp,"b");
+    register_function(vm->state,"print",print);
     Call(vm->state,0,0);
     fclose(fp);
     GCall();

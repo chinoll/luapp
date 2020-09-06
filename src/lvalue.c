@@ -59,27 +59,27 @@ void initLuaValue(LuaValue *val,int type,void *data,uint64_t len) {
     switch(type) {
         case LUAPP_TINT:
             val->eqfunc = intCmp;
-            uint64_t data1 = (uint64_t)data;
-            val->data_hashcode = dataHash(&data1, len);
             break;
         case LUAPP_TFLOAT:
             val->eqfunc = floatCmp;
-            val->data_hashcode = dataHash(data,len);
-
             break;
         case LUAPP_TSTRING:
             val->eqfunc = stringCmp;
-            val->data_hashcode = dataHash(data,len);
             break;
         default:
             val->eqfunc = memcmp;
     }
+    if(len == 0)
+        val->data_hashcode = (uint64_t)data;
+    else
+        val->data_hashcode = dataHash(data,len);
     val->ref_list = lmalloc(sizeof(LuaValue *) * DefaultRefListSize);
     if(val->ref_list == NULL)
 	    printf("ref null\n");
     memset((void *)val->ref_list, 0,DefaultRefListSize * sizeof(LuaValue *));
     list_init(&val->next);
     val->mark = false;
+    val->end_clean = false;
     list_add(&val->next,&rootSet);
 }
 
@@ -177,6 +177,6 @@ LuaValue *newFloat(double n) {
 
 LuaValue *NewTable(uint64_t nArr,uint64_t nRec) {
     LuaTable *table = newLuaTable(nArr,nRec);
-    LuaValue *val = newLuaValue(LUAPP_TTABLE,table,0);
+    LuaValue *val = newLuaValue(LUAPP_TTABLE,table,sizeof(table));
     return val;
 }

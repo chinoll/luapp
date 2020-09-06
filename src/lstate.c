@@ -41,7 +41,13 @@ LuaState * newLuaState(Prototype *prototype) {
     LuaState * state = (LuaState *)lmalloc(sizeof(LuaState));
     if(state == NULL)
         panic(OOM);
-    state->stack = newLuaStack(DefaultStackSize);
+    state->stack = newLuaStack(DefaultStackSize, state);
+    LuaValue *registery  = NewTable(0, 0);
+    LuaValue *table = NewTable(0, 0);
+    registery->stack_count = 1;
+    table->stack_count = 1;
+    putItemTable(registery, newInt(LUAPP_RIDX_GLOBALS), table);
+    state->registery = registery;
     return state;
 }
 void freeLuaState(LuaState * state) {
@@ -70,7 +76,7 @@ void push_nil(LuaState * state) {
     push(state->stack,val);
 }
 void push_bool(LuaState * state,bool b) {
-   LuaValue * val = newLuaValue(LUAPP_TBOOLEAN,(void *)b, sizeof(bool));
+   LuaValue * val = newLuaValue(LUAPP_TBOOLEAN,(void *)b, 0);
    push(state->stack,val);
 
 }
@@ -525,7 +531,7 @@ void runLuaClosure(LuaState *state) {
 void callLuaRunClosure(LuaState *state,int64_t nargs,int64_t nresults,Closure *closure) {
     uint8_t nregs = closure->proto->max_stack_size;
     uint8_t nparams = closure->proto->num_params;
-    LuaStack *newStack = newLuaStack(nregs + DefaultStackSize);
+    LuaStack *newStack = newLuaStack(nregs + DefaultStackSize,state);
     newStack->lua_closure = closure;
 
     LuaValue **funcAndarg = popN(state->stack,nparams);
@@ -556,7 +562,7 @@ void callLuaRunClosure(LuaState *state,int64_t nargs,int64_t nresults,Closure *c
 int64_t Load(FILE *chunk,char *mode) {
     Prototype *proto = Undump(chunk);
     vm = NewLuaVM(proto);
-    push(vm->state->stack,newLuaValue(LUAPP_TCLOSURE,newLuaClosure(proto),sizeof(Closure)));
+    push(vm->state->stack,newLuaValue(LUAPP_TCLOSURE,newLuaClosure(proto,NULL),sizeof(Closure)));
     return 0;
 }
 
@@ -564,8 +570,12 @@ void Call(LuaState *state,int64_t nargs,int64_t nresults) {
     LuaValue *val = get(state->stack,-(nargs + 1));
     if(val != NULL && val->type == LUAPP_TCLOSURE) {
         Closure *closure = (Closure *)val->data;
-        printf("call %s<%d,%d>\n",closure->proto->source,closure->proto->line_def,closure->proto->last_line_def);
-        callLuaRunClosure(state,nargs,nresults,closure);
+        if(closure->proto != NULL) {
+            printf("call %s<%d,%d>\n",closure->proto->source,closure->proto->line_def,closure->proto->last_line_def);
+            callLuaRunClosure(state,nargs,nresults,closure);
+        }
+        else
+            callCClosure(state, nargs, nresults, closure);
     } else {
         printf("not function!\n");
     }
@@ -578,4 +588,118 @@ void LoadVararg(LuaState *state,int64_t n) {
 
     checkStack(state->stack,n);
     pushN(state->stack,state->stack->varargs,state->stack->varargs_len,n);
+}
+
+void PushCFunc(LuaState *state, CFunc f) {
+    push(state->stack, newLuaValue(LUAPP_TCLOSURE, newLuaClosure(NULL,f),sizeof(Closure)));
+}
+
+bool IsCFunc(LuaState *state, int idx) {
+    LuaValue *val = get(state->stack, idx);
+    if(LUAPP_TCLOSURE == val->type)
+        return ((Closure *)val->data)->CFunction != NULL;
+    return false;
+}
+
+CFunc ToCFunc(LuaState *state, int idx) {
+    LuaValue *val = get(state->stack, idx);
+    if(val->type == LUAPP_TCLOSURE)
+        return ((Closure *)val->data)->CFunction;
+    return NULL;
+} 
+
+void callCClosure(LuaState *state, int nArgs, int nResults, Closure *c) {
+    LuaStack *newStack = newLuaStack(nArgs + 20,state);
+    newStack->lua_closure = c;
+
+    LuaValue **val = popN(state->stack, nArgs);
+    pushN(newStack, val, nArgs, nArgs);
+    pop(state->stack);
+
+    pushLuaStack(state,newStack);
+    int r = c->CFunction(state);
+    popLuaStack(state);
+    lfree(val);
+    if(nResults != 0) {
+        LuaValue **res = popN(state->stack,r);
+        int i;
+        for(i = 0;i < r;i++)
+            if(res[i] == NULL)
+                break;
+        checkStack(state->stack,i);
+        pushN(state->stack,res,i,nResults);
+        lfree(res);
+    }
+}
+
+void pushGlobalTable(LuaState *state) {
+    LuaValue *val = getTableItem(state->registery,newInt(LUAPP_RIDX_GLOBALS));
+
+    push(state->stack, val);
+}
+
+int GetGlobal(LuaState *state, char *name) {
+    LuaValue *val = getTableItem(state->registery, newInt(LUAPP_RIDX_GLOBALS));
+    return __getTable(state->stack,val,newStr(name));
+}
+
+void SetGlobal(LuaState *state, char *name) {
+    LuaValue *t = getTableItem(state->registery, newInt(LUAPP_RIDX_GLOBALS));
+    LuaValue *v = pop(state->stack);
+    LuaValue *x = newStr(name);
+    __setTable(t,x,v);
+}
+
+void register_function(LuaState *state, char *name, CFunc f) {
+    PushCFunc(state, f);
+    SetGlobal(state, name);
+}
+
+void getConst(LuaState *state,int32_t idx) {
+
+    //根据索引从常量表里，取出常量值，将其推入栈顶
+    Type t = state->stack->lua_closure->proto->constants[idx];
+    switch(t.type) {
+        case TAG_NIL:
+            push_nil(state);
+            break;
+        case TAG_BOOLEAN:
+            push_bool(state,(bool)t.data);
+            break;
+        case TAG_INTEGER:
+            push_int(state,(int64_t)t.data);
+            break;
+        case TAG_LONG_STR:
+        case TAG_SHORT_STR:
+            push_string(state,(char *)t.data);
+            break;
+        case TAG_NUMBER:
+            push_num(state,(*(double *)t.data));
+            break;
+        default:
+            panic("Error!");
+            break;
+    }
+}
+
+uint32_t fetch(LuaState *state) {
+
+    //取指函数
+    //根据PC索引从指令表里取出当前指令，再将PC加1
+
+    uint32_t i = state->stack->lua_closure->proto->code[state->stack->pc];
+    state->stack->pc++;
+    return i;
+}
+
+uint64_t get_top(LuaState * state) {
+    return state->stack->top;
+}
+
+uint64_t getPC(LuaState *state) {
+    return state->stack->pc;
+}
+
+void addPC(LuaState *state,int64_t n) {
+    state->stack->pc += n;
 }

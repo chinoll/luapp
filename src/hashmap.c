@@ -64,6 +64,8 @@ HashMapEntry *getHashMapEntry(HashMap *map, uint64_t hashcode, void *key, uint64
 
     if(equalFunc == NULL)   //如果比较函数为NULL，则使用默认的比较函数
         equalFunc = memcmp;
+    if(map == NULL)
+        return NULL;
     uint64_t hash = gethash(hashcode,map);  //获取hash
 
     list *pos;

@@ -16,7 +16,7 @@
 LuaStack **global_stack;
 int global_stack_size;
 
-LuaStack * newLuaStack(uint64_t size) {
+LuaStack * newLuaStack(uint64_t size, LuaState *state) {
     LuaStack * s = (LuaStack *)lmalloc(sizeof(LuaStack));
     if(NULL == s)
         panic(OOM);
@@ -30,6 +30,7 @@ LuaStack * newLuaStack(uint64_t size) {
     s->lua_closure = NULL;
     s->varargs = NULL;
     s->varargs_len = 0;
+    s->state = state;
     for(int i = 0;i < global_stack_size;i++) {
 	    if(NULL == global_stack[i]) {
 		    global_stack[i] = s;
@@ -94,6 +95,8 @@ uint64_t absIndex(LuaStack * stack,int64_t idx) {
     /*
      * 将索引转换成绝对索引
      */
+    if(idx <= LUAPP_REGISTERINDEX)
+        return idx;
     if (idx >= 0)
         return idx;
     return idx + stack->top + 1;
@@ -102,16 +105,25 @@ bool isValid(LuaStack *stack,int64_t idx) {
     /*
      * 判断索引是否有效
      */
+    if(idx == LUAPP_REGISTERINDEX)
+        return true;
     uint64_t absIdx = absIndex(stack,idx);
     return absIdx > 0 && absIdx <= stack->top;
 }
 LuaValue *  get(LuaStack * stack,int64_t idx) {
+    if(idx == LUAPP_REGISTERINDEX)
+        return stack->state->registery;
+
     uint64_t absidx = absIndex(stack,idx);
     if(isValid(stack,idx))
         return (LuaValue *)(stack->slots[absidx - 1]);
     return NULL;
 }
 void  set(LuaStack *stack,int64_t idx,LuaValue * val) {
+    if(idx == LUAPP_REGISTERINDEX) {
+        stack->state->registery = val;
+        return;
+    }
     uint64_t absidx = absIndex(stack,idx);
     if(isValid(stack,idx)) {
         stack->slots[absidx - 1] = val;

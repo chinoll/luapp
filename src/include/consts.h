@@ -39,4 +39,8 @@ extern enum {  //比较运算符
 extern int debug_level;
 #define HASH_SEED (3)
 #define LFIELDS_PER_FLUSH 50
+#define LUAPP_MINSACK 20
+#define LUAPP_MAXSTACK 1000000
+#define LUAPP_REGISTERINDEX  -LUAPP_MAXSTACK - 1000
+#define LUAPP_RIDX_GLOBALS (int64_t)2
 #endif //LUAPP_CONSTS_H

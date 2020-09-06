@@ -6,7 +6,9 @@
 #include <stdbool.h>
 #include "lvalue.h"
 #include "closure.h"
+#include "lstate.h"
 #define DEFAULT_GLOBAL_STACK_SIZE 8
+
 typedef  struct __lua_stack {
     LuaValue **slots;
     struct __lua_stack *prev;
@@ -16,11 +18,12 @@ typedef  struct __lua_stack {
     uint64_t stack_len;
     uint64_t top;           //stack top index
     uint64_t pc;
+    LuaState *state;
 } LuaStack;
 extern int global_stack_size;
 extern LuaStack **global_stack;
 #define luaStackEmpty(stack) ((stack)->top == 0)
-LuaStack * newLuaStack(uint64_t size);
+LuaStack * newLuaStack(uint64_t size, LuaState *state);
 void freeLuaStack(LuaStack * stack);
 void checkStack(LuaStack *stack,uint64_t n);
 void push(LuaStack *stack,LuaValue *val);
