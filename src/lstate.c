@@ -521,7 +521,6 @@ void runLuaClosure(LuaState *state) {
     while(true) {
         uint64_t pc = getPC(state);
         instruction inst = fetch(state);
-        //printStack(state);
         ExecuteInstruction(vm, inst);
         if(debug_level > 1) {
             printf("[%ld] %s ", pc + 1, codes[get_opcode(inst)].name);

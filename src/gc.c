@@ -11,7 +11,6 @@
 
 list rootSet;
 uint64_t period;
-int count;
 uint64_t getMillisecond(void) {
     //获取时间戳
     struct timeval tv;
@@ -57,7 +56,6 @@ void sweep(void) {
         else
             val->mark = false;
         next = pos;
-        count++;
     }
 }
 void GC(LuaStack *stack) {
