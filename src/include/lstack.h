@@ -7,6 +7,7 @@
 #include "lvalue.h"
 #include "closure.h"
 #include "lstate.h"
+#include "table.h"
 #define DEFAULT_GLOBAL_STACK_SIZE 8
 
 typedef  struct __lua_stack {
@@ -19,6 +20,7 @@ typedef  struct __lua_stack {
     uint64_t top;           //stack top index
     uint64_t pc;
     LuaState *state;
+    LuaValue *openuvs;
 } LuaStack;
 extern int global_stack_size;
 extern LuaStack **global_stack;

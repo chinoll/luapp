@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 #include "inst.h"
 #include "lstate.h"
 #include "opcode.h"
@@ -17,9 +18,11 @@ void moveInst(instruction i) {
 
 void jmpInst(instruction i) {
     struct code_format ins = AsBx(i);
-    addPC(vm->state,ins.bx);
-    if(ins.a != 0)
-        panic("todo!");
+    addPC(vm->state, ins.bx);
+
+    if(ins.a != 0) {
+        CloseUpvalues(vm->state, ins.a);
+    }
 }
 
 void loadNilInst(instruction i) {
@@ -277,8 +280,6 @@ static inline void __popResults(int32_t a,int32_t c) {
 void callInst(instruction i) {
     struct code_format ins = ABC(i);
     ins.a++;
-    //if(i == 16793828)
-//	    printf("error!");
     int32_t nargs = __pushFuncAndArgs(ins.a,ins.b);
     Call(vm->state,nargs,ins.c - 1);
     __popResults(ins.a,ins.c);
@@ -321,8 +322,30 @@ void selfInst(instruction i) {
 }
 void LoadProto(int32_t idx) {
     Prototype *proto = vm->state->stack->lua_closure->proto->protos[idx];
-    Closure *closure = newLuaClosure(proto,NULL);
+    Closure *closure = newLuaClosure(proto);
     push(vm->state->stack,newLuaValue(LUAPP_TCLOSURE,closure,sizeof(Closure)));
+
+    for(int32_t i = 0; i < proto->upvalues_len;i++) {
+        int64_t uvidx = proto->upvalues[i].idx;
+
+        if(proto->upvalues[i].in_stack == 1) {
+            if(NULL == vm->state->stack->openuvs) {
+                vm->state->stack->openuvs = NewTable(0, 0);
+                vm->state->stack->openuvs->stack_count = 1;
+            }
+
+            LuaValue *openuv = getTableItem(vm->state->stack->openuvs,newInt(uvidx));
+            
+            if(openuv->type == LUAPP_TUSERDATA) {
+                closure->upvals[i] = openuv->data;
+            } else {
+                closure->upvals[i] = newLuaUpvalue(vm->state->stack->slots[uvidx]);
+                putItemTable(vm->state->stack->openuvs, newInt(uvidx), newLuaValue(LUAPP_TUSERDATA, closure->upvals[i], sizeof(LuaUpvalue)));
+            }
+        } else {
+            closure->upvals[i] = vm->state->stack->lua_closure->upvals[uvidx];
+        }
+    }
 }
 void closureInst(instruction i) {
     struct code_format ins = ABx(i);
@@ -345,11 +368,36 @@ void varargInst(instruction i) {
 
 void getTabUpInst(instruction i) {
     struct code_format ins = ABC(i);
+    ins.a++;ins.b++;
+    getRK(vm->state, ins.c);
+    GetTable(vm->state, LuaUpvalueIndex(ins.b));
+    replace(vm->state, ins.a);
+}
+
+void getUpvalInst(instruction i) {
+    struct code_format ins = ABC(i);
+    ins.a++;ins.b++;
+
+    copy_value(vm->state, LuaUpvalueIndex(ins.b), ins.a);
+}
+
+void setUpvalInst(instruction i) {
+    struct code_format ins = ABC(i);
+    ins.a++;ins.b++;
+
+    copy_value(vm->state, ins.a, LuaUpvalueIndex(ins.b));
+}
+
+void setTabUpInst(instruction i) {
+    struct code_format ins = ABC(i);
     ins.a++;
 
-    pushGlobalTable(vm->state);
+    LuaValue *val;
+    getRK(vm->state, ins.b);
+    val = get(vm->state->stack, -1);
+    val->end_clean = true;
     getRK(vm->state, ins.c);
-    GetTable(vm->state, -2);
-    replace(vm->state, ins.a);
-    pop(vm->state->stack);
+    val = get(vm->state->stack, -1);
+    val->end_clean = true;
+    SetTable(vm->state, LuaUpvalueIndex(ins.a));
 }

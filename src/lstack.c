@@ -105,6 +105,13 @@ bool isValid(LuaStack *stack,int64_t idx) {
     /*
      * 判断索引是否有效
      */
+
+    if(idx < LUAPP_REGISTERINDEX) {
+        int uvidx = LUAPP_REGISTERINDEX - idx - 1;
+        Closure *closure = stack->lua_closure;
+        return (closure != NULL) && (uvidx < closure->upvals_len);
+    }
+
     if(idx == LUAPP_REGISTERINDEX)
         return true;
     uint64_t absIdx = absIndex(stack,idx);
@@ -114,12 +121,29 @@ LuaValue *  get(LuaStack * stack,int64_t idx) {
     if(idx == LUAPP_REGISTERINDEX)
         return stack->state->registery;
 
+    if(idx < LUAPP_REGISTERINDEX) {
+        int uvidx = LUAPP_REGISTERINDEX - idx - 1;
+        Closure *c = stack->lua_closure;
+
+        if(NULL == c || uvidx >= c->upvals_len)
+            return NULL;
+        return c->upvals[uvidx]->val;
+    }
     uint64_t absidx = absIndex(stack,idx);
     if(isValid(stack,idx))
         return (LuaValue *)(stack->slots[absidx - 1]);
     return NULL;
 }
 void  set(LuaStack *stack,int64_t idx,LuaValue * val) {
+    if(idx < LUAPP_REGISTERINDEX) {
+        int uvidx = LUAPP_REGISTERINDEX - idx - 1;
+        Closure *c = stack->lua_closure;
+        if(NULL != c && uvidx < c->upvals_len) {
+            c->upvals[uvidx]->val = val;
+        }
+        return;
+    }
+    
     if(idx == LUAPP_REGISTERINDEX) {
         stack->state->registery = val;
         return;

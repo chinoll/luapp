@@ -57,7 +57,7 @@ static LuaValue *__getTableItem(LuaTable *table,LuaValue *key) {
      */
     if(key->type == LUAPP_TNIL)
         return newLuaValue(LUAPP_TNIL,NULL,0);
-    if(key->type == LUAPP_TINT && (uint64_t)key->data <= table->arr_len)
+    if(key->type == LUAPP_TINT && (uint64_t)key->data < table->arr_len)
         return __getArrayItem(table,key);
     else
         return __getMapItem(table,key);
@@ -67,7 +67,7 @@ LuaValue *getTableItem(LuaValue *val,LuaValue *key) {
     return __getTableItem(table,key);
 }
 
-static int __putItemToMap(LuaTable *table,LuaValue *key,LuaValue *value) {
+static HashMapEntry * __putItemToMap(LuaTable *table,LuaValue *key,LuaValue *value) {
     /*将一个值放入散列表中*/
     HashMap *map = table->map;
     if(table->map == NULL) {
@@ -130,7 +130,7 @@ static int __putItemToTable(LuaValue *table,LuaValue *key,LuaValue *value) {
         panic("Key can't Nil");
     if(value->type == LUAPP_TNIL)
         return -1;
-    if(key->type == LUAPP_TINT && (uint64_t)key->data <= ((LuaTable *)table->data)->arr_len)
+    if(key->type == LUAPP_TINT && (uint64_t)key->data < ((LuaTable *)table->data)->arr_len)
         return __putItemToArray(table->data,key,value);
     else {
 
@@ -144,9 +144,14 @@ static int __putItemToTable(LuaValue *table,LuaValue *key,LuaValue *value) {
 	    	memcpy(data,key->data,key->len);
     		val = newLuaValue(key->type,data,key->len);
     	}
-	addRef(val,table);
-	//printf("stack:%d\n",table->stack_count);
-         __putItemToMap(table->data,val,value);
+        val->end_clean = key->end_clean;
+	    addRef(val,table);
+        HashMapEntry * entry = __putItemToMap(table->data,val,value);
+        if(NULL != entry) {
+            deleteRef((LuaValue *)entry->key, table);
+            deleteRef((LuaValue *)entry->value, table);
+            lfree(entry);
+        }
     }
     return -1;
 }

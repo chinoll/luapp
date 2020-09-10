@@ -14,6 +14,8 @@
 #include "lvm.h"
 #include "memory.h"
 #include "gc.h"
+#include "list.h"
+#include "hashmap.h"
 
 operator operators[] = {//算术运算函数
         {iadd,fadd},
@@ -46,7 +48,10 @@ LuaState * newLuaState(Prototype *prototype) {
     LuaValue *table = NewTable(0, 0);
     registery->stack_count = 1;
     table->stack_count = 1;
-    putItemTable(registery, newInt(LUAPP_RIDX_GLOBALS), table);
+
+    LuaValue *val = newInt(LUAPP_RIDX_GLOBALS);
+    val->end_clean = true;
+    putItemTable(registery, val, table);
     state->registery = registery;
     return state;
 }
@@ -516,12 +521,13 @@ void runLuaClosure(LuaState *state) {
     while(true) {
         uint64_t pc = getPC(state);
         instruction inst = fetch(state);
+        //printStack(state);
         ExecuteInstruction(vm, inst);
         if(debug_level > 1) {
             printf("[%ld] %s ", pc + 1, codes[get_opcode(inst)].name);
             printStack(state);
         }
-        if(period < getMillisecond())
+        //if(period < getMillisecond())
             GC(state->stack);   //进行垃圾回收
         if(get_opcode(inst) == OP_RETURN)
             break;
@@ -534,7 +540,7 @@ void callLuaRunClosure(LuaState *state,int64_t nargs,int64_t nresults,Closure *c
     LuaStack *newStack = newLuaStack(nregs + DefaultStackSize,state);
     newStack->lua_closure = closure;
 
-    LuaValue **funcAndarg = popN(state->stack,nparams);
+    LuaValue **funcAndarg = popN(state->stack,nparams + 1);
     pushN(newStack,funcAndarg + 1,nparams - 1,nparams);
 
     if(nargs > nparams && (closure->proto->is_vararg == 1)){
@@ -562,16 +568,25 @@ void callLuaRunClosure(LuaState *state,int64_t nargs,int64_t nresults,Closure *c
 int64_t Load(FILE *chunk,char *mode) {
     Prototype *proto = Undump(chunk);
     vm = NewLuaVM(proto);
-    push(vm->state->stack,newLuaValue(LUAPP_TCLOSURE,newLuaClosure(proto,NULL),sizeof(Closure)));
+    Closure *c = newLuaClosure(proto);
+    push(vm->state->stack,newLuaValue(LUAPP_TCLOSURE, c, sizeof(Closure)));
+    if(proto->upvalues_len > 0) {   //设置ENV
+        LuaValue *env = getTableItem(vm->state->registery, newInt(LUAPP_RIDX_GLOBALS));
+        c->upvals[0] = malloc(sizeof(LuaUpvalue));
+        if(NULL == c->upvals[0])
+            panic(OOM);
+        c->upvals[0]->val = env;
+    }
     return 0;
 }
 
 void Call(LuaState *state,int64_t nargs,int64_t nresults) {
     LuaValue *val = get(state->stack,-(nargs + 1));
+    val->end_clean = true;
     if(val != NULL && val->type == LUAPP_TCLOSURE) {
         Closure *closure = (Closure *)val->data;
         if(closure->proto != NULL) {
-            printf("call %s<%d,%d>\n",closure->proto->source,closure->proto->line_def,closure->proto->last_line_def);
+            //printf("call %s<%d,%d>\n",closure->proto->source,closure->proto->line_def,closure->proto->last_line_def);
             callLuaRunClosure(state,nargs,nresults,closure);
         }
         else
@@ -579,6 +594,7 @@ void Call(LuaState *state,int64_t nargs,int64_t nresults) {
     } else {
         printf("not function!\n");
     }
+        val->end_clean = false;
 }
 
 void LoadVararg(LuaState *state,int64_t n) {
@@ -591,7 +607,7 @@ void LoadVararg(LuaState *state,int64_t n) {
 }
 
 void PushCFunc(LuaState *state, CFunc f) {
-    push(state->stack, newLuaValue(LUAPP_TCLOSURE, newLuaClosure(NULL,f),sizeof(Closure)));
+    push(state->stack, newLuaValue(LUAPP_TCLOSURE, newCClosure(f, 0),sizeof(Closure)));
 }
 
 bool IsCFunc(LuaState *state, int idx) {
@@ -646,8 +662,12 @@ int GetGlobal(LuaState *state, char *name) {
 void SetGlobal(LuaState *state, char *name) {
     LuaValue *t = getTableItem(state->registery, newInt(LUAPP_RIDX_GLOBALS));
     LuaValue *v = pop(state->stack);
-    LuaValue *x = newStr(name);
-    __setTable(t,x,v);
+    v->stack_count++;
+    LuaValue *k = newStr(name);
+    k->end_clean = true;
+    LuaValue *tmp = getTableItem(t,k);
+    tmp->stack_count--;
+    __setTable(t, k, v);
 }
 
 void register_function(LuaState *state, char *name, CFunc f) {
@@ -702,4 +722,40 @@ uint64_t getPC(LuaState *state) {
 
 void addPC(LuaState *state,int64_t n) {
     state->stack->pc += n;
+}
+
+void  PushClosure(LuaState *state, CFunc f, int32_t n) {
+    Closure *closure = newCClosure(f, n);
+
+    for(int32_t i = n;i > 0;i--) {
+        LuaValue *val = pop(state->stack);
+
+        closure->upvals[i - 1] = newLuaUpvalue(val);
+    }
+    push(state->stack, newLuaValue(LUAPP_TCLOSURE, closure, sizeof(Closure)));
+}
+
+int LuaUpvalueIndex(int32_t i) {
+    return LUAPP_REGISTERINDEX - i;
+}
+
+void CloseUpvalues(LuaState *state, int a) {
+    int len = tableLen(state->stack->openuvs);
+    for(int i = 0;i < len;i++) {
+        if(i >= a - 1) {
+            LuaTable *table = state->stack->openuvs->data;
+            if(NULL != table->map) {
+                KeySet *set = getAllKey(table->map);
+                list *pos;
+                list *n = &set->list;
+                list_for_each(pos,&set->list) {
+                    KeySet *Set = container_of(n, KeySet, list);
+                    deleteItem(state->stack->openuvs, Set->key);
+                    list_del(&Set->list);
+                    lfree(Set);
+                    n = pos;
+                }
+            }
+        }
+    }
 }

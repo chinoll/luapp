@@ -5,7 +5,7 @@
 
 void *lmalloc(size_t size) {
     void *ptr = malloc(size);
-    if(ptr == (void *)0x801c100)
+    if(ptr == (void *)0x801f807)
         printf("e");
     return ptr;
 }
@@ -15,7 +15,7 @@ void lfree(void *ptr) {
         printf("ERROR!!!");
         exit(0);
     }
-    if(ptr == (void *)0x801c100)
+    if(ptr == (void *)0x8012750)
         printf("e");
     free(ptr);
 }

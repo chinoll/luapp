@@ -108,4 +108,9 @@ void pushGlobalTable(LuaState *state);
 int GetGlobal(LuaState *state, char *name);
 void SetGlobal(LuaState *state, char *name);
 void register_function(LuaState *state, char *name,CFunc f);
+
+//upvalues
+void pushCClosure(LuaState *state, CFunc f,int32_t n);
+int LuaUpvalueIndex(int32_t i);
+void CloseUpvalues(LuaState *state, int32_t i);
 #endif //LUAPP_LSTATE_H

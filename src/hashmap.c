@@ -26,6 +26,9 @@ void *hashMapInit(HashMap *map) {
 
     map->len = defaultEntrySize;
     map->count = 0;
+    //InitKeySet(&map->set);
+    map->set.key = NULL;
+    list_init(&map->set.list);
     return map;
 }
 
@@ -121,13 +124,14 @@ int expandHashMap(HashMap *map) {
     return 0;
 }
 
-int __putItemToHashMap(HashMap *map, uint64_t hashcode, void *key, uint64_t len, void *value,compareFunc eq) {
+HashMapEntry * __putItemToHashMap(HashMap *map, uint64_t hashcode, void *key, uint64_t len, void *value,compareFunc eq) {
     /*
      * 将一个元素放入散列表
      * @hashcode:key的散列值
      * @key:键
      * @value:值
      */
+    HashMapEntry *ret = NULL;
     if(((map->count << defaultEntrySize) >> map->len) >= loadLimit) {
         //如果散列表内的entry数量达到散列表长度的60%则扩展散列表
         if(expandHashMap(map) == -1) {
@@ -141,10 +145,17 @@ int __putItemToHashMap(HashMap *map, uint64_t hashcode, void *key, uint64_t len,
         entry = newHashMapEntry(key, value, hashcode);
         list_add(&entry->list, &map->list[hash]);
         map->count++;
-        return 0;
-    } else
-        return -1;
-}
+    } else {
+        list_del(&entry->list);
+        HashMapEntry *entry1 = newHashMapEntry(key, value, hashcode);
+        list_add(&entry1->list, &map->list[hash]);
+        ret = entry;
+    }
+    KeySet *set = newKeySet(key);
+    list_add(&(set->list), &(map->set.list));
+
+    return ret;
+} 
 /*
  * 将元素放入散列表map
  * @map:已经被初始化的散列表
@@ -194,7 +205,15 @@ void freeHashMap(HashMap *map) {
             HashMapEntry *mentry = container_of(n,HashMapEntry,list);
             list_del(&mentry->list);
             lfree(mentry);
-	    n = pos;
+	        n = pos;
+        }
+        pos = NULL;
+        n = map->set.list.next;
+        list_for_each(pos,map->set.list.next) {
+            KeySet *set = container_of(n,KeySet, list);
+            list_del(&set->list);
+            lfree(set);
+            n = pos;
         }
     }
     lfree(map->list);
@@ -202,3 +221,15 @@ void freeHashMap(HashMap *map) {
 }
 
 
+KeySet *getAllKey(HashMap *map) {
+    return &(map->set);
+}
+
+KeySet *newKeySet(void *key) {
+    KeySet *set = lmalloc(sizeof(KeySet));
+    if(NULL == set)
+        panic(OOM);
+    set->key = key;
+    list_init(&set->list);
+    return set;
+}

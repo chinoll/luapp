@@ -13,9 +13,13 @@ typedef struct __hashmapentry {
     uint64_t hashcode;
     list list;
 } HashMapEntry;
-
+typedef struct __hashmapkey {
+        void *key;
+        list list;
+} KeySet;
 typedef struct hashmap {
     list *list;
+    KeySet set;
     uint64_t len;          //散列表的长度的对数，实际长度为2<<len
     uint64_t count;     //散列表中的entry数量
 } HashMap;
@@ -28,7 +32,7 @@ HashMapEntry *newHashMapEntry(void *key,void *value,uint64_t hashcode);
 void *__getHashMapItem(HashMap *map, uint64_t hashcode, void *key, uint64_t len, compareFunc equalFunc);
 void *getHashMapItem(HashMap *map, void *key, uint64_t len, compareFunc equalFunc);
 
-int __putItemToHashMap(HashMap *map, uint64_t hashcode, void *key,uint64_t len, void *value,compareFunc eq);
+HashMapEntry * __putItemToHashMap(HashMap *map, uint64_t hashcode, void *key,uint64_t len, void *value,compareFunc eq);
 void putItemToHashMap(HashMap *map, void *key, uint64_t len, void *value);
 
 int expandHashMap(HashMap *map);
@@ -46,4 +50,6 @@ void reHash(HashMap *map, void *old_key, uint64_t old_len, void *new_key, \
 void deleteHashMapEntry(HashMap *map, HashMapEntry * entry);
 
 void freeHashMap(HashMap *map);
+KeySet *getAllKey(HashMap *map);
+KeySet *newKeySet(void *key);
 #endif //LUAPP_HASHMAP_H

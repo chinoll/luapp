@@ -39,4 +39,5 @@ extern const code_struct codes[];
 LuaVM *NewLuaVM(Prototype *prototype);
 void freeLuaVM(LuaVM *lvm);
 void ExecuteInstruction(LuaVM *lvm,instruction i);
+
 #endif //LUAPP_LVM_H

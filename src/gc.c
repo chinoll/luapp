@@ -11,7 +11,7 @@
 
 list rootSet;
 uint64_t period;
-
+int count;
 uint64_t getMillisecond(void) {
     //获取时间戳
     struct timeval tv;
@@ -37,7 +37,7 @@ void mark(LuaStack *stack) {
                     push(stack1, node->ref_list[j]);
                     node->ref_list[j]->mark = true;
                     flag = false;
-                    }
+                }
             }
             if(flag)
                 break;
@@ -57,6 +57,7 @@ void sweep(void) {
         else
             val->mark = false;
         next = pos;
+        count++;
     }
 }
 void GC(LuaStack *stack) {
@@ -71,7 +72,7 @@ void GCall(void) {
     list_for_each(pos,rootSet.next) {
         LuaValue *val = container_of(n,LuaValue,next);
         freeLuaValue(val);
-        n = pos;
+        n = pos; 
     }
 }
 
