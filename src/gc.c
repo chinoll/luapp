@@ -8,6 +8,7 @@
 #include "lvalue.h"
 #include "gc.h"
 #include "lstack.h"
+#include "lvm.h"
 
 list rootSet;
 uint64_t period;
@@ -42,6 +43,34 @@ void mark(LuaStack *stack) {
                 break;
         }
     }
+
+    //遍历全局变量
+    LuaValue *_env = getTableItem(vm->state->registery, newInt(LUAPP_RIDX_GLOBALS));    //全局变量
+    LuaTable *table = _env->data;
+    HashMapEntry **entrys = getAllHashMapEntry(table->map);
+    for(int i = 0;NULL != entrys[i];i++) {
+        push(stack1, entrys[i]->key);
+        push(stack1, entrys[i]->value);
+        LuaValue *node;
+        for(;;) {
+            int flag = true;
+            node = pop(stack1);
+
+            node->mark = true;
+
+            for(uint64_t j = 0;j < node->ref_list_len;j++) {    //遍历键-值关联的对象
+                if(node->ref_list[j] != NULL) {
+                    checkStack(stack1,1);
+                    push(stack1, node->ref_list[j]);
+                    node->ref_list[j]->mark = true;
+                    flag = false;
+                }
+            }
+            if(flag)
+                break;
+        }
+    }
+    free(entrys);
     freeLuaStack(stack1);
 }
 void sweep(void) {

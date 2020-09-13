@@ -12,14 +12,15 @@ typedef struct __hashmapentry {
     void *key;
     uint64_t hashcode;
     list list;
+    list nextkey;
 } HashMapEntry;
-typedef struct __hashmapkey {
+/*typedef struct __hashmapkey {
         void *key;
         list list;
-} KeySet;
+} KeySet;*/
 typedef struct hashmap {
     list *list;
-    KeySet set;
+    list keyset;
     uint64_t len;          //散列表的长度的对数，实际长度为2<<len
     uint64_t count;     //散列表中的entry数量
 } HashMap;
@@ -50,6 +51,8 @@ void reHash(HashMap *map, void *old_key, uint64_t old_len, void *new_key, \
 void deleteHashMapEntry(HashMap *map, HashMapEntry * entry);
 
 void freeHashMap(HashMap *map);
-KeySet *getAllKey(HashMap *map);
-KeySet *newKeySet(void *key);
+void **getAllKey(HashMap *map);
+void **getAllValue(HashMap *map);
+HashMapEntry **getAllHashMapEntry(HashMap *map);
 #endif //LUAPP_HASHMAP_H
+ 

@@ -661,11 +661,11 @@ int GetGlobal(LuaState *state, char *name) {
 void SetGlobal(LuaState *state, char *name) {
     LuaValue *t = getTableItem(state->registery, newInt(LUAPP_RIDX_GLOBALS));
     LuaValue *v = pop(state->stack);
-    v->stack_count++;
+    //v->stack_count++;
     LuaValue *k = newStr(name);
-    k->end_clean = true;
+    //k->end_clean = true;
     LuaValue *tmp = getTableItem(t,k);
-    tmp->stack_count--;
+    //tmp->stack_count--;
     __setTable(t, k, v);
 }
 
@@ -744,16 +744,10 @@ void CloseUpvalues(LuaState *state, int a) {
         if(i >= a - 1) {
             LuaTable *table = state->stack->openuvs->data;
             if(NULL != table->map) {
-                KeySet *set = getAllKey(table->map);
-                list *pos;
-                list *n = &set->list;
-                list_for_each(pos,&set->list) {
-                    KeySet *Set = container_of(n, KeySet, list);
-                    deleteItem(state->stack->openuvs, Set->key);
-                    list_del(&Set->list);
-                    lfree(Set);
-                    n = pos;
-                }
+                void **keyset = getAllKey(table->map);
+                for(i = 0;keyset[i] != NULL;i++)
+                    deleteItem(state->stack->openuvs, keyset[i]);
+                lfree(keyset);
             }
         }
     }

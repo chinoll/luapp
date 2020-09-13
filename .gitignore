@@ -4,3 +4,6 @@ CMakeFiles
 CmakeCache.txt
 cmake_install.cmake
 Makefile
+build
+*.out
+*.lua

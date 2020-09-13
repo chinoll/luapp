@@ -27,8 +27,7 @@ void *hashMapInit(HashMap *map) {
     map->len = defaultEntrySize;
     map->count = 0;
     //InitKeySet(&map->set);
-    map->set.key = NULL;
-    list_init(&map->set.list);
+    list_init(&map->keyset);
     return map;
 }
 
@@ -43,6 +42,7 @@ HashMapEntry *newHashMapEntry(void *key, void *value, uint64_t hashcode) {
     entry->hashcode = hashcode;
 
     list_init(&entry->list);
+    list_init(&entry->nextkey);
     return entry;
 }
 
@@ -144,16 +144,16 @@ HashMapEntry * __putItemToHashMap(HashMap *map, uint64_t hashcode, void *key, ui
     if(entry == NULL) {
         entry = newHashMapEntry(key, value, hashcode);
         list_add(&entry->list, &map->list[hash]);
+        list_add(&entry->nextkey,map->keyset.next);
         map->count++;
     } else {
         list_del(&entry->list);
+        list_del(&entry->nextkey);
         HashMapEntry *entry1 = newHashMapEntry(key, value, hashcode);
         list_add(&entry1->list, &map->list[hash]);
+        list_add(&entry1->nextkey, map->keyset.next);
         ret = entry;
     }
-    KeySet *set = newKeySet(key);
-    list_add(&(set->list), &(map->set.list));
-
     return ret;
 } 
 /*
@@ -173,6 +173,7 @@ HashMapEntry * __putItemToHashMap(HashMap *map, uint64_t hashcode, void *key, ui
 void deleteHashMapEntry(HashMap *map, HashMapEntry * entry) {
     //从散列表map中删除元素entry
     list_del(&entry->list);
+    list_del(entry->nextkey.next);
     lfree(entry);
     map->count--;
 }
@@ -207,29 +208,50 @@ void freeHashMap(HashMap *map) {
             lfree(mentry);
 	        n = pos;
         }
-        pos = NULL;
-        n = map->set.list.next;
-        list_for_each(pos,map->set.list.next) {
-            KeySet *set = container_of(n,KeySet, list);
-            list_del(&set->list);
-            lfree(set);
-            n = pos;
-        }
     }
     lfree(map->list);
     lfree(map);
 }
 
+HashMapEntry **getAllHashMapEntry(HashMap *map) {
+    HashMapEntry **entrys = lmalloc(sizeof(HashMapEntry *) * (map->count + 1));
+    if(NULL == entrys)
+        panic(OOM);
+    
+    memset(entrys, 0, sizeof(HashMapEntry *) * (map->count + 1));
 
-KeySet *getAllKey(HashMap *map) {
-    return &(map->set);
+    list *pos;
+    list *n = map->keyset.next;
+    int i = 0;
+    list_for_each(pos,map->keyset.next) {
+        HashMapEntry *entry = container_of(n, HashMapEntry, nextkey);
+        entrys[i] = entry;
+        n = pos;
+        i++;
+    }
+    return entrys;
 }
 
-KeySet *newKeySet(void *key) {
-    KeySet *set = lmalloc(sizeof(KeySet));
-    if(NULL == set)
-        panic(OOM);
-    set->key = key;
-    list_init(&set->list);
-    return set;
+/*
+ * 获取所有键，返回的void **变量最后一个的值为NULL
+ */
+
+void **getAllKey(HashMap *map) {
+    HashMapEntry **entrys = getAllHashMapEntry(map);
+    void **keys = entrys;   //为了美观
+    for(int i = 0;NULL != keys[i];i++)
+        keys[i] = entrys[i]->key;
+    return keys;
+}
+
+/*
+ * 获取所有值，返回的void **变量最后一个的值为NULL
+ */
+
+void **getAllValue(HashMap *map) {
+    HashMapEntry **entrys = getAllHashMapEntry(map);
+    void **values = entrys;
+    for(int i = 0;NULL != entrys[i];i++)
+        values[i] = entrys[i]->value;
+    return values;
 }
