@@ -9,7 +9,7 @@
 #include "gc.h"
 #include "lstack.h"
 #include "lvm.h"
-
+#include "memory.h"
 list rootSet;
 uint64_t period;
 uint64_t getMillisecond(void) {
@@ -70,7 +70,7 @@ void mark(LuaStack *stack) {
                 break;
         }
     }
-    free(entrys);
+    lfree(entrys);
     freeLuaStack(stack1);
 }
 void sweep(void) {

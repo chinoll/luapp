@@ -238,7 +238,7 @@ HashMapEntry **getAllHashMapEntry(HashMap *map) {
 
 void **getAllKey(HashMap *map) {
     HashMapEntry **entrys = getAllHashMapEntry(map);
-    void **keys = entrys;   //为了美观
+    void **keys = (void **)entrys;   //为了美观
     for(int i = 0;NULL != keys[i];i++)
         keys[i] = entrys[i]->key;
     return keys;
@@ -250,7 +250,7 @@ void **getAllKey(HashMap *map) {
 
 void **getAllValue(HashMap *map) {
     HashMapEntry **entrys = getAllHashMapEntry(map);
-    void **values = entrys;
+    void **values = (void **)entrys;
     for(int i = 0;NULL != entrys[i];i++)
         values[i] = entrys[i]->value;
     return values;
