@@ -19,7 +19,12 @@ Closure *newLuaClosure(Prototype *proto) {
             panic(OOM);
         memset(closure->upvals, 0, sizeof(LuaUpvalue *) * proto->upvalues_len);
         closure->upvals_len = proto->upvalues_len;
+    } else
+    {
+        closure->upvals = NULL;
+        closure->upvals_len = 0;
     }
+    
     return closure;
 }
 
@@ -28,7 +33,15 @@ void freeLuaClosure(Closure *closure) {
         for(int i = 0;i < closure->upvals_len;i++) {
             if(NULL == closure->upvals[i])
                 continue;
-            lfree(closure->upvals[i]);
+            //if(closure->upvals[i] == (void *)0x4b7f9b0)
+            //    printf("n");
+
+            for(int j = 0;j < global_upvals_size;j++) {
+                if(closure->upvals[i] == global_upvals[j]) {
+                    lfree(closure->upvals[i]);
+                    global_upvals[j] = NULL;
+                }
+            }
         }
         lfree(closure->upvals);
     }
@@ -47,6 +60,9 @@ Closure * newCClosure(CFunc f, int64_t nupvals) {
             panic(OOM);
         memset(closure->upvals, 0, sizeof(LuaUpvalue *) * nupvals);
         closure->upvals_len = nupvals;
+    } else {
+        closure->upvals = NULL;
+        closure->upvals_len = 0;
     }
     return closure;
 }
@@ -60,5 +76,10 @@ LuaUpvalue * newLuaUpvalue(LuaValue * val) {
 }
 
 void freeLuaUpvalue(LuaUpvalue *up) {
-    lfree(up);
+    for(int j = 0;j < global_upvals_size;j++) {
+        if(up == global_upvals[j]) {
+            lfree(up);
+            global_upvals[j] = NULL;
+        }
+    }
 }

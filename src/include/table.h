@@ -11,6 +11,7 @@
 #include "lstack.h"
 
 typedef struct __luatable {
+    struct __luatable *metatable;   //元表
     LuaValue **arr;
     uint64_t arr_len;   //arr字段的长度
     uint64_t free_arr_count;  //空闲arr字段个数

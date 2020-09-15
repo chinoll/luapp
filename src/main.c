@@ -65,6 +65,16 @@ int print(LuaState *ls) {
     return 0;
 }
 
+int getMetatable(LuaState *state) {
+    if(GetMetatable(state, 1)) {
+        push_nil(state);
+    }
+    return 1;
+}
+int setMetatable(LuaState *state) {
+    SetMetatable(state, 1);
+    return 1;
+}
 int main(int argc,char *argv[]) {
     if(argc < 2)
         return 1;
@@ -74,14 +84,20 @@ int main(int argc,char *argv[]) {
     debug_level = 0;
     list_init(&rootSet);
     INITVALUE(global_stack, global_stack_size, DEFAULT_GLOBAL_STACK_SIZE);
+    INITVALUE(global_upvals, global_upvals_size, DEFAULT_GLOBAL_STACK_SIZE);
     period = getMillisecond() + 1000;
     Load(fp,"b");
+    
     register_function(vm->state,"print",print);
+    register_function(vm->state, "getmetatable", getMetatable);
+    register_function(vm->state, "setmetatable", setMetatable);
+
     Call(vm->state,0,0);
     fclose(fp);
     GCall();
     freeP(global_proto,"");
     freeLuaVM(vm);
     FREEVALUE(global_stack,global_stack_size,freeLuaStack);
+    FREEVALUE(global_upvals,global_upvals_size,freeLuaUpvalue);
     return 0;
 }

@@ -180,3 +180,16 @@ LuaValue *NewTable(uint64_t nArr,uint64_t nRec) {
     LuaValue *val = newLuaValue(LUAPP_TTABLE,table,sizeof(table));
     return val;
 }
+
+LuaValue *cloneLuaValue(LuaValue *val) {
+    LuaValue *ret = newLuaValue(val->type, NULL, 0);
+    void *data = lmalloc(val->len);
+    if(NULL == data)
+        panic(OOM);
+    
+    memcpy(data, val->data, val->len);
+    ret->data_hashcode = val->data_hashcode;
+    ret->len = val->len;
+    ret->data = val->data;
+    return ret;
+}

@@ -7,7 +7,7 @@
 #include "consts.h"
 #include "lbinchunk.h"
 #include "lerror.h"
-
+//#include "table.h"
 typedef int64_t ArithOp;        //按位和算术运算符
 typedef int64_t CompareOp; //比较运算符
 
@@ -16,6 +16,7 @@ typedef int64_t CompareOp; //比较运算符
 typedef struct __lua_state LuaState;
 typedef int (*CFunc)(struct __lua_state *);
 typedef struct __lua_stack LuaStack;
+typedef struct __luatable LuaTable;
 #include "lstack.h"
 
 typedef struct __lua_state {
@@ -25,6 +26,7 @@ typedef struct __lua_state {
 
 
 typedef struct __operator {
+    char *metamethod;
     int64_t (*intFunc)(int64_t,int64_t);
     double (*floatFunc)(double,double);
 } operator;
@@ -113,4 +115,9 @@ void register_function(LuaState *state, char *name,CFunc f);
 void pushCClosure(LuaState *state, CFunc f,int32_t n);
 int LuaUpvalueIndex(int32_t i);
 void CloseUpvalues(LuaState *state, int32_t i);
+
+void __setMetatable(LuaState *state, LuaValue *val, LuaTable *mt);
+LuaValue *__getMetatable(LuaState *state, LuaValue *val);
+bool GetMetatable(LuaState *state, int idx);
+void SetMetatable(LuaState *state, int idx);
 #endif //LUAPP_LSTATE_H

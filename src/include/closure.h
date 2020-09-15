@@ -16,9 +16,13 @@ typedef struct __lua_closure {
     int upvals_len;
 } Closure;
 
+extern LuaUpvalue **global_upvals;
+extern int global_upvals_size;
+
 Closure * newLuaClosure(Prototype * proto);
 Closure * newCClosure(CFunc f, int64_t nupvals);
 void freeLuaClosure(Closure *closure);
 LuaUpvalue * newLuaUpvalue(LuaValue * val);
 void freeLuaUpvalue(LuaUpvalue *up);
+LuaUpvalue *cloneLuaUpvalue(LuaUpvalue *up);
 #endif

@@ -57,4 +57,5 @@ void setFloat(double n);
 uint64_t addrhash(void * key,uint64_t len,uint64_t seed);
 void __expanRefList(LuaValue *val);
 
+LuaValue *cloneLuaValue(LuaValue *val);
 #endif //LUAPP_LVALUE_H

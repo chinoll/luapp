@@ -20,16 +20,11 @@ LuaStack * newLuaStack(uint64_t size, LuaState *state) {
     LuaStack * s = (LuaStack *)lmalloc(sizeof(LuaStack));
     if(NULL == s)
         panic(OOM);
+    memset(s, 0, sizeof(LuaStack));
     s->slots = (LuaValue **)lmalloc(sizeof(LuaValue *) * size);
     memset(s->slots,0, sizeof(LuaValue *) * size);
 
-    s->top = 0;
     s->stack_len = size;
-    s->pc = 0;
-    s->prev = NULL;
-    s->lua_closure = NULL;
-    s->varargs = NULL;
-    s->varargs_len = 0;
     s->state = state;
     for(int i = 0;i < global_stack_size;i++) {
 	    if(NULL == global_stack[i]) {
