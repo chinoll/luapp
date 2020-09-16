@@ -46,7 +46,6 @@ void loadBoolInst(instruction i) {
 
 void loadKInst(instruction i) {
     struct code_format ins = ABx(i);
-    //printf("address:%p\n",ins);
     ins.a++;
     getConst(vm->state,ins.bx);
     replace(vm->state,ins.a);

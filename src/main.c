@@ -54,8 +54,13 @@ uint64_t ObjHash(void *obj,uint64_t len,uint64_t seed) {
 int print(LuaState *ls) {
     int nargs = get_top(ls);
     for(int j = 1;j <= nargs;j++) {
-        if(isBool(ls, j))
-            printf("%d",to_bool(ls,j));
+        if(isBool(ls, j)){
+            bool b = to_bool(ls,j);
+            if(b == true)
+                printf("true");
+            else
+                printf("false");
+        }
         else if(isString(ls,j))
             printf(to_string(ls,j));
         else if(isNumber(ls,j))

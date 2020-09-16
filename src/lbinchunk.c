@@ -300,6 +300,7 @@ void freeProtoType(Prototype * proto,char * source) {
   	lfree(proto->protos);
   lfree(proto->upvalue_names);
   lfree(proto->loc_vars);
-  lfree(proto->constants);
+  if(NULL != proto->constants)
+    lfree(proto->constants);
   lfree(proto);
 }

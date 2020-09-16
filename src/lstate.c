@@ -35,9 +35,9 @@ operator operators[] = {//算术运算函数
 };
 static LuaValue * __arith(LuaValue *a,LuaValue *b,operator op);
 
-static bool __eq(LuaValue *a,LuaValue *b);
-static bool __lt(LuaValue *a,LuaValue *b);
-static bool __le(LuaValue *a,LuaValue *b);
+static bool __eq(LuaValue *a, LuaValue *b, LuaState *state);
+static bool __lt(LuaValue *a, LuaValue *b, LuaState *state);
+static bool __le(LuaValue *a, LuaValue *b, LuaState *state);
 
 LuaUpvalue **global_upvals;
 int global_upvals_size;
@@ -310,16 +310,16 @@ bool Compare(LuaState * state,int64_t idx1,int64_t idx2,CompareOp op) {
 
     switch(op) {
         case LUAPP_OPEQ:
-            return __eq(a,b);
+            return __eq(a, b, state);
         case LUAPP_OPLT:
-            return __lt(a,b);
+            return __lt(a, b, state);
         case LUAPP_OPLE:
-            return __le(a,b);
+            return __le(a, b, state);
         default:
             panic("invalid compare op!");
     }
 }
-bool __eq(LuaValue *a,LuaValue *b) {
+bool __eq(LuaValue *a, LuaValue *b, LuaState *state) {
     //比较a和b的值是否相等
     switch(a->type) {
         case LUAPP_TNIL:
@@ -356,12 +356,22 @@ bool __eq(LuaValue *a,LuaValue *b) {
             bool c = *(double *)val->data == *(double *)a->data;
             return c;
             }
+        case LUAPP_TTABLE: {
+            LuaValue *x = a->data;
+            LuaValue *y = b->data;
+            if(x != y && NULL != state) {
+                LuaValue *res = callMetamethod(state, x, y, "__eq");
+                if(NULL != res)
+                    return res->data;
+            }
+            return a == b;
+        }
         default:
             //暂时不处理其他的数据类型
             return false;
         }
     }
-bool __lt(LuaValue *a,LuaValue *b) {
+bool __lt(LuaValue *a, LuaValue *b, LuaState *state) {
     //a是否小于b
     switch(a->type) {
         case LUAPP_TSTRING: {
@@ -374,25 +384,31 @@ bool __lt(LuaValue *a,LuaValue *b) {
                 return false;
         }
         case LUAPP_TINT: {
-            if(b->type != LUAPP_TINT && b->type != LUAPP_TFLOAT)
+            if(a->type != LUAPP_TINT && a->type != LUAPP_TFLOAT)
                 return false;
-            LuaValue *val = ConvertToInt(b);
-            bool c = (int64_t)val->data < (int64_t)a->data;
+            LuaValue *val = ConvertToInt(a);
+            bool c = (int64_t)val->data < (int64_t)b->data;
             return c;
         }
         case LUAPP_TFLOAT: {
-            if(b->type != LUAPP_TINT && b->type != LUAPP_TFLOAT)
+            if(a->type != LUAPP_TINT && a->type != LUAPP_TFLOAT)
                 return false;
-            LuaValue *val = ConvertToFloat(b);
-            bool c = *(double *)val->data < *(double *)a->data;
+            LuaValue *val = ConvertToFloat(a);
+            bool c = *(double *)val->data < *(double *)b->data;
             return c;
+        }
+        case LUAPP_TTABLE: {
+            LuaValue *res = callMetamethod(state, a, b, "__lt");
+            if(NULL != res)
+                return res->data;
+            return false;
         }
         default:
             //暂时不处理其他的数据类型
             return false;
     }
 }
-bool __le(LuaValue *a,LuaValue *b) {
+bool __le(LuaValue *a, LuaValue *b, LuaState *state) {
     //a是否小于等于b
     switch(a->type) {
         case LUAPP_TSTRING: {
@@ -412,11 +428,17 @@ bool __le(LuaValue *a,LuaValue *b) {
             return c;
         }
         case LUAPP_TFLOAT: {
-            if(b->type != LUAPP_TINT && b->type != LUAPP_TFLOAT)
+            if(a->type != LUAPP_TINT && a->type != LUAPP_TFLOAT)
                 return false;
-            LuaValue *val = ConvertToFloat(b);
-            bool c = *(double *)val->data <= *(double *)a->data;
+            LuaValue *val = ConvertToFloat(a);
+            bool c = *(double *)val->data <= *(double *)b->data;
             return c;
+        }
+        case LUAPP_TTABLE: {
+            LuaValue *res = callMetamethod(state, a, b, "__le");
+            if(NULL != res)
+                return res->data;
+            return false;
         }
         default:
             //暂时不处理其他的数据类型
@@ -561,6 +583,7 @@ void runLuaClosure(LuaState *state) {
     while(true) {
         uint64_t pc = getPC(state);
         instruction inst = fetch(state);
+
         if(debug_level > 0) {
             printf("[%ld] %s ", pc + 1, codes[get_opcode(inst)].name);
             printStack(state);
@@ -580,12 +603,12 @@ void callLuaRunClosure(LuaState *state,int64_t nargs,int64_t nresults,Closure *c
     LuaStack *newStack = newLuaStack(nregs + DefaultStackSize,state);
     newStack->lua_closure = closure;
 
-    LuaValue **funcAndarg = popN(state->stack,nparams + 1);
+    LuaValue **funcAndarg = popN(state->stack,nargs + 1);
     pushN(newStack,funcAndarg + 1,nparams,nparams);
 
     if(nargs > nparams && (closure->proto->is_vararg == 1)){
-            newStack->varargs = funcAndarg + 1;
-            newStack->varargs_len = 0;
+            newStack->varargs = funcAndarg + nparams + 1;
+            newStack->varargs_len = nargs - nparams;
     }
     if(newStack->varargs_len < 0)
         newStack->varargs_len = 0;
@@ -825,6 +848,7 @@ LuaValue *__getMetatable(LuaState *state, LuaValue *val) {
         panic(OOM);
     snprintf(key, DEFAULT_KEY_LEN, "_MT%d", typeOf(val));
     LuaValue *mt = getTableItem(state->registery, newStr(key));
+    lfree(key);
     return mt;
 }
 
