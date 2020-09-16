@@ -50,7 +50,7 @@ static LuaValue *__getMapItem(LuaTable *table,LuaValue *key) {
 static LuaValue *__getArrayItem(LuaTable *table,LuaValue *key) {
     return table->arr[(uint64_t)key->data - 1];
 }
-static LuaValue *__getTableItem(LuaTable *table,LuaValue *key) {
+LuaValue *__getTableItem(LuaTable *table,LuaValue *key) {
     /* 从table中获取一个LuaValue实例
      * 如果key的类型是数字，并且值小于数组长度时从数组中获取LuaValue实例，
      * 否则从散列表中查找

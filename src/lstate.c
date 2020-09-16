@@ -217,8 +217,9 @@ void set_top(LuaState * state,int64_t idx) {
 }
 static LuaValue *getMetafield(LuaState *state, LuaValue *val, char *fieldName) {
     LuaValue *mt = __getMetatable(state, val);
-    if(mt->type == LUAPP_TNIL)
-        return getTableItem(mt, newStr(fieldName));
+    LuaTable *table = mt->data;
+    if(mt->type != LUAPP_TNIL)
+        return __getTableItem(table->metatable, newStr(fieldName));
     return NULL;
 }
 static LuaValue *callMetamethod(LuaState *state, LuaValue *a, LuaValue *b, char *name) {
@@ -426,14 +427,16 @@ bool __le(LuaValue *a,LuaValue *b) {
 void Len(LuaState * state,int64_t idx) {
     //获取指定索引处值的长度,将长度推入栈顶
     LuaValue *val = get(state->stack,idx);
-    LuaValue *res = NULL;
+    LuaValue *res = callMetamethod(state, val, val, "__len");
+    if(res != NULL)
+        goto end;
     if(val->type == LUAPP_TSTRING)
         res = newInt(strlen(val->data));
     else if(val->type == LUAPP_TTABLE)
         res = newInt(val->len);
-    else
+    else if(NULL == res)
         panic("length error!");
-
+end:
     push(state->stack,res);
 }
 
@@ -449,11 +452,10 @@ void Concat(LuaState * state,int64_t n,int32_t b) {
                 char *str1,*str2;
                 str1 = to_string(state,-2);
                 str2 = to_string(state,-1);
-                char * str = lmalloc(sizeof(char)*strlen(str1) + sizeof(char)*strlen(str2) + 1);
+                char * str = lmalloc(sizeof(char) * (strlen(str1)+strlen(str2)+1));
                 if(str == NULL)
                     panic(OOM);
 
-                //lfree(str2);
                 strcpy(str,str1);
                 strcpy(str + strlen(str1),str2);
 
@@ -463,6 +465,14 @@ void Concat(LuaState * state,int64_t n,int32_t b) {
                 LuaValue * val1 = newStr(str);
                 push(state->stack,val1);
                 lfree(str);
+                continue;
+            }
+
+            LuaValue *b = pop(state->stack);
+            LuaValue *a = pop(state->stack);
+            LuaValue *res = callMetamethod(state, a, b, "__concat");
+            if(NULL != res) {
+                push(state->stack, res);
                 continue;
             }
             panic("concatenation error!");
@@ -551,11 +561,12 @@ void runLuaClosure(LuaState *state) {
     while(true) {
         uint64_t pc = getPC(state);
         instruction inst = fetch(state);
-        ExecuteInstruction(vm, inst);
-        if(debug_level > 1) {
+        if(debug_level > 0) {
             printf("[%ld] %s ", pc + 1, codes[get_opcode(inst)].name);
             printStack(state);
         }
+        ExecuteInstruction(vm, inst);
+
         //if(period < getMillisecond())
             GC(state->stack);   //进行垃圾回收
         if(get_opcode(inst) == OP_RETURN)
@@ -570,7 +581,7 @@ void callLuaRunClosure(LuaState *state,int64_t nargs,int64_t nresults,Closure *c
     newStack->lua_closure = closure;
 
     LuaValue **funcAndarg = popN(state->stack,nparams + 1);
-    pushN(newStack,funcAndarg + 1,nparams - 1,nparams);
+    pushN(newStack,funcAndarg + 1,nparams,nparams);
 
     if(nargs > nparams && (closure->proto->is_vararg == 1)){
             newStack->varargs = funcAndarg + 1;
@@ -625,7 +636,7 @@ void Call(LuaState *state,int64_t nargs,int64_t nresults) {
     if(val != NULL && val->type == LUAPP_TCLOSURE) {
         Closure *closure = (Closure *)val->data;
         if(closure->proto != NULL) {
-            //printf("call %s<%d,%d>\n",closure->proto->source,closure->proto->line_def,closure->proto->last_line_def);
+            printf("call %s<%d,%d>\n",closure->proto->source,closure->proto->line_def,closure->proto->last_line_def);
             callLuaRunClosure(state,nargs,nresults,closure);
         }
         else

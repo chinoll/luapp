@@ -26,4 +26,5 @@ void deleteItem(LuaValue *val,LuaValue *key);
 
 uint64_t tableLen(LuaValue *val);
 void freeLuaTable(void *ptr);
+LuaValue *__getTableItem(LuaTable *table,LuaValue *key);
 #endif //LUAPP_TABLE_H

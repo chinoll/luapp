@@ -24,7 +24,7 @@ LuaValue * ConvertToFloat(LuaValue *t) {
             *n = *(double *)t->data;
             break;
         case LUAPP_TINT:
-            *n = (double)(*(int64_t *)t->data);
+            *n = (double)((int64_t)t->data);
             break;
         case LUAPP_TSTRING:
             *n = atof(t->data);

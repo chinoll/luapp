@@ -58,6 +58,8 @@ int print(LuaState *ls) {
             printf("%d",to_bool(ls,j));
         else if(isString(ls,j))
             printf(to_string(ls,j));
+        else if(isNumber(ls,j))
+            printf("%f",to_number(ls,j));
         else
             printf(type_name(type(ls,j)));
     }
