@@ -213,3 +213,7 @@ void freeLuaTable(void *ptr) {
     	freeHashMap(table->map);
     lfree(table);
 }
+
+bool hasMetafield(LuaTable *table, const char *str) {
+    return table->metatable != NULL && __getTableItem(table->metatable, newStr(str));
+}

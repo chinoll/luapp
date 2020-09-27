@@ -27,4 +27,5 @@ void deleteItem(LuaValue *val,LuaValue *key);
 uint64_t tableLen(LuaValue *val);
 void freeLuaTable(void *ptr);
 LuaValue *__getTableItem(LuaTable *table,LuaValue *key);
+bool hasMetafield(LuaTable *table, const char *str);
 #endif //LUAPP_TABLE_H

@@ -511,13 +511,35 @@ void CreateTable(LuaState *state,uint64_t nArr,uint64_t nRec) {
     push(state->stack,val);
 }
 
-int __getTable(LuaStack *stack, LuaValue *table, LuaValue *key) {
+int __getTable(LuaState *state, LuaValue *table, LuaValue *key, bool raw) {
     //从表中获取一个值，并将值推入栈中
-    if(typeOf(table) != LUAPP_TTABLE)
-        panic("Not a table!");
-    LuaValue *res = getTableItem(table,key);
-    push(stack,res);
-    return typeOf(res);
+
+    if(typeOf(table) == LUAPP_TTABLE) {
+        LuaValue *v = getTableItem(table,key);
+        if(raw || v->type != LUAPP_TNIL || !hasMetafield(table->data, "__index")) {
+            push(state->stack, v);
+            return typeOf(v);
+        }
+    }
+    if(!raw) {
+        LuaValue *mf = getMetafield(state, table, "__index");
+        if(mf != NULL) {
+            switch (mf->type)
+            {
+            case LUAPP_TTABLE:
+            return __getTable(state, mf->data, key, false);
+            
+            case LUAPP_TCLOSURE:
+                push(state->stack, mf);
+                push(state->stack, table);
+                push(state->stack, key);
+                Call(state, 2, 1);
+                return typeOf(get(state->stack,-1));
+            }
+        }
+
+    }
+    panic("index error!");
 }
 
 int GetTable(LuaState *state, const int64_t idx) {
@@ -526,7 +548,7 @@ int GetTable(LuaState *state, const int64_t idx) {
     LuaValue *t = get(state->stack,idx);
     LuaValue *k = pop(state->stack);
 
-    return __getTable(state->stack, t, k);
+    return __getTable(state, t, k, false);
 }
 
 int GetField(LuaState *state, const int64_t idx, char * k) {
@@ -534,14 +556,14 @@ int GetField(LuaState *state, const int64_t idx, char * k) {
     LuaValue *t = get(state->stack, idx);
     LuaValue *v = newStr(k);
 
-    return __getTable(state->stack,t,v);
+    return __getTable(state, t, v, false);
 }
 
 int GetI(LuaState *state,const int64_t idx,const int64_t i) {
     //从表中获取一个值
     LuaValue *t = get(state->stack,idx);
     LuaValue *v = newInt(i);
-    return __getTable(state->stack,t,v);
+    return __getTable(state, t, v, false);
 }
 void __setTable(LuaValue *t,LuaValue *k,LuaValue *v) {
     //修改/添加/删除表中的值
@@ -729,7 +751,7 @@ void pushGlobalTable(LuaState *state) {
 
 int GetGlobal(LuaState *state, char *name) {
     LuaValue *val = getTableItem(state->registery, newInt(LUAPP_RIDX_GLOBALS));
-    return __getTable(state->stack,val,newStr(name));
+    return __getTable(state, val, newStr(name), false);
 }
 
 void SetGlobal(LuaState *state, char *name) {

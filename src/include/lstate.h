@@ -90,7 +90,7 @@ static inline void getRK(LuaState *state,int32_t rk) {
     }
 }
 void CreateTable(LuaState *state,uint64_t nArr,uint64_t nRec);
-int __getTable(LuaStack *stack,LuaValue *table,LuaValue *key);
+int __getTable(LuaState *state, LuaValue *table, LuaValue *key, bool raw);
 int GetTable(LuaState *state,int64_t idx);
 int GetField(LuaState *state, int64_t idx,char *k);
 void __setTable(LuaValue *t,LuaValue *k,LuaValue *v);
