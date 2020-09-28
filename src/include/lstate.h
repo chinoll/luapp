@@ -93,7 +93,7 @@ void CreateTable(LuaState *state,uint64_t nArr,uint64_t nRec);
 int __getTable(LuaState *state, LuaValue *table, LuaValue *key, bool raw);
 int GetTable(LuaState *state,int64_t idx);
 int GetField(LuaState *state, int64_t idx,char *k);
-void __setTable(LuaValue *t,LuaValue *k,LuaValue *v);
+void __setTable(LuaValue *t, LuaValue *k, LuaValue *v, bool raw);
 void SetTable(LuaState *state, int64_t idx);
 void SetI(LuaState *state, int64_t idx, int64_t i);
 

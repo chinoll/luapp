@@ -565,13 +565,34 @@ int GetI(LuaState *state,const int64_t idx,const int64_t i) {
     LuaValue *v = newInt(i);
     return __getTable(state, t, v, false);
 }
-void __setTable(LuaValue *t,LuaValue *k,LuaValue *v) {
+void __setTable(LuaValue *t, LuaValue *k, LuaValue *v, bool raw) {
     //修改/添加/删除表中的值
     if (typeOf(t) == LUAPP_TTABLE) {
-        putItemTable(t,k,v);
-        return;
+        LuaValue *temp = getTableItem(t, k);
+        if(raw || temp->type != LUAPP_TNIL || !hasMetafield(t->data, "__newindex")) {
+            putItemTable(t,k,v);
+            return;
+        }
     }
-    panic("Not a table!");
+
+    if(!raw) {
+        LuaValue *mf = getMetafield(vm->state, t, "__newindex");
+        if(mf != NULL) {
+            switch (mf->type) {
+            case LUAPP_TTABLE:
+                __setTable(mf, k, v, false);
+                return;
+            case LUAPP_TCLOSURE:
+                push(vm->state->stack, mf);
+                push(vm->state->stack, t);
+                push(vm->state->stack, k);
+                push(vm->state->stack, v);
+                Call(vm->state, 3, 0);
+                return;
+            }
+        }
+    }
+    panic("index error!");
 }
 
 void SetTable(LuaState *state,const int64_t idx) {
@@ -579,7 +600,7 @@ void SetTable(LuaState *state,const int64_t idx) {
     LuaValue *t = get(state->stack,idx);
     LuaValue *v = pop(state->stack);
     LuaValue *k = pop(state->stack);
-    __setTable(t,k,v);
+    __setTable(t, k, v, false);
 }
 
 void SetI(LuaState *state, const int64_t idx, int64_t i) {
@@ -587,7 +608,7 @@ void SetI(LuaState *state, const int64_t idx, int64_t i) {
     LuaValue *t = get(state->stack,idx);
     LuaValue *v = pop(state->stack);
     LuaValue *k = newInt(i);
-    __setTable(t,k,v);
+    __setTable(t, k, v, false);
 }
 
 void pushLuaStack(LuaState *state,LuaStack *stack) {
@@ -626,7 +647,9 @@ void callLuaRunClosure(LuaState *state,int64_t nargs,int64_t nresults,Closure *c
     newStack->lua_closure = closure;
 
     LuaValue **funcAndarg = popN(state->stack,nargs + 1);
-    pushN(newStack,funcAndarg + 1,nparams,nparams);
+    int flen;
+    for(flen = 0;funcAndarg[flen+1] != NULL;flen++);
+    pushN(newStack,funcAndarg + 1,flen,nparams);
 
     if(nargs > nparams && (closure->proto->is_vararg == 1)){
             newStack->varargs = funcAndarg + nparams + 1;
@@ -758,7 +781,7 @@ void SetGlobal(LuaState *state, char *name) {
     LuaValue *t = getTableItem(state->registery, newInt(LUAPP_RIDX_GLOBALS));
     LuaValue *v = pop(state->stack);
     LuaValue *k = newStr(name);
-    __setTable(t, k, v);
+    __setTable(t, k, v, false);
 }
 
 void register_function(LuaState *state, char *name, CFunc f) {

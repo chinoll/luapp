@@ -69,7 +69,8 @@ void push (LuaStack * stack,LuaValue *val) {
     if (stack->top == stack->stack_len) {
         panic("stack overflow!");
     }
-
+    if(val == NULL)
+        printf("wocaonima");
     stack->slots[stack->top] = val;
     stack->top++;
     if(val != NULL)

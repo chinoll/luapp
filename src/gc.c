@@ -47,30 +47,32 @@ void mark(LuaStack *stack) {
     //遍历全局变量
     LuaValue *_env = getTableItem(vm->state->registery, newInt(LUAPP_RIDX_GLOBALS));    //全局变量
     LuaTable *table = _env->data;
-    HashMapEntry **entrys = getAllHashMapEntry(table->map);
-    for(int i = 0;NULL != entrys[i];i++) {
-        push(stack1, entrys[i]->key);
-        push(stack1, entrys[i]->value);
-        LuaValue *node;
-        for(;;) {
-            int flag = true;
-            node = pop(stack1);
+    if(table->map != NULL) {
+        HashMapEntry **entrys = getAllHashMapEntry(table->map);
+        for(int i = 0;NULL != entrys[i];i++) {
+            push(stack1, entrys[i]->key);
+            push(stack1, entrys[i]->value);
+            LuaValue *node;
+            for(;;) {
+                int flag = true;
+                node = pop(stack1);
 
-            node->mark = true;
+                node->mark = true;
 
-            for(uint64_t j = 0;j < node->ref_list_len;j++) {    //遍历键-值关联的对象
-                if(node->ref_list[j] != NULL) {
-                    checkStack(stack1,1);
-                    push(stack1, node->ref_list[j]);
-                    node->ref_list[j]->mark = true;
-                    flag = false;
+                for(uint64_t j = 0;j < node->ref_list_len;j++) {    //遍历键-值关联的对象
+                    if(node->ref_list[j] != NULL) {
+                        checkStack(stack1,1);
+                        push(stack1, node->ref_list[j]);
+                        node->ref_list[j]->mark = true;
+                        flag = false;
+                    }
                 }
+                if(flag)
+                    break;
             }
-            if(flag)
-                break;
         }
+        lfree(entrys);
     }
-    lfree(entrys);
     freeLuaStack(stack1);
 }
 void sweep(void) {
