@@ -697,10 +697,20 @@ int64_t Load(FILE *chunk,char *mode) {
     }
     return 0;
 }
-
 void Call(LuaState *state,int64_t nargs,int64_t nresults) {
     LuaValue *val = get(state->stack,-(nargs + 1));
     val->end_clean = true;
+
+    if(val != NULL && val->type != LUAPP_TCLOSURE) {
+        LuaValue *mf = getMetafield(state, val, "__call");
+        if(NULL != mf && mf->type == LUAPP_TCLOSURE) {
+            val = mf;
+            push(state->stack, val);
+            insert_value(state, -(nargs + 2));
+            nargs++;
+        } 
+    }
+
     if(val != NULL && val->type == LUAPP_TCLOSURE) {
         Closure *closure = (Closure *)val->data;
         if(closure->proto != NULL) {
