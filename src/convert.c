@@ -24,7 +24,7 @@ LuaValue * ConvertToFloat(LuaValue *t) {
             *n = *(double *)t->data;
             break;
         case LUAPP_TINT:
-            *n = (double)(*(int64_t *)t->data);
+            *n = (double)((int64_t)t->data);
             break;
         case LUAPP_TSTRING:
             *n = atof(t->data);
@@ -91,8 +91,8 @@ LuaValue * ConvertToBool(LuaValue *t) {
 
 LuaValue * ConvertToString(LuaValue *t) {
     //将值t转换为字符串
-    if(t == NULL || t->data == NULL)
-        panic("The value of t and t->data cannot be NULL");
+    if(t == NULL)
+        panic("The value of t cannot be NULL");
 
     LuaValue * val = newLuaValue(LUAPP_TSTRING,NULL,0);
     switch(t->type) {

@@ -26,6 +26,7 @@ LuaValue * newLuaValue(int type,void * data,uint64_t len) {
     LuaValue * val = lmalloc(sizeof(LuaValue));
     if(val == NULL)
         panic(OOM);
+    memset(val, 0, sizeof(LuaValue));
     initLuaValue(val,type,data,len);
     return val;
 }
@@ -55,7 +56,6 @@ void initLuaValue(LuaValue *val,int type,void *data,uint64_t len) {
     val->ref_list_len = DefaultRefListExpandSize;
     val->len = len;
     val->addr_hashcode = addrhash(val, sizeof(void *),HASH_SEED);
-    val->stack_count = 0;
     switch(type) {
         case LUAPP_TINT:
             val->eqfunc = intCmp;
@@ -74,8 +74,8 @@ void initLuaValue(LuaValue *val,int type,void *data,uint64_t len) {
     else
         val->data_hashcode = dataHash(data,len);
     val->ref_list = lmalloc(sizeof(LuaValue *) * DefaultRefListSize);
-    if(val->ref_list == NULL)
-	    printf("ref null\n");
+    if(NULL == val->ref_list)
+	    panic(OOM);
     memset((void *)val->ref_list, 0,DefaultRefListSize * sizeof(LuaValue *));
     list_init(&val->next);
     val->mark = false;
@@ -149,6 +149,8 @@ void addRef(LuaValue *val,LuaValue *ref) {
  */
 void deleteRef(LuaValue *val,LuaValue *ref) {
     for(uint64_t i = 0;i < ref->ref_list_len;i++) {
+        if(NULL == ref->ref_list[i])
+            continue;
         if(ref->ref_list[i]->addr_hashcode == val->addr_hashcode)
             if(memcmp(val,ref->ref_list[i], sizeof(LuaValue)) == 0) {
                 ref->ref_list[i] = NULL;
@@ -179,4 +181,17 @@ LuaValue *NewTable(uint64_t nArr,uint64_t nRec) {
     LuaTable *table = newLuaTable(nArr,nRec);
     LuaValue *val = newLuaValue(LUAPP_TTABLE,table,sizeof(table));
     return val;
+}
+
+LuaValue *cloneLuaValue(LuaValue *val) {
+    LuaValue *ret = newLuaValue(val->type, NULL, 0);
+    void *data = lmalloc(val->len);
+    if(NULL == data)
+        panic(OOM);
+    
+    memcpy(data, val->data, val->len);
+    ret->data_hashcode = val->data_hashcode;
+    ret->len = val->len;
+    ret->data = val->data;
+    return ret;
 }

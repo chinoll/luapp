@@ -6,7 +6,7 @@
 #include "opcode.h"
 #include "convert.h"
 #include "memory.h"
-
+#include "misc.h"
 #define RegisterCount(state) (state)->stack->lua_closure->proto->max_stack_size
 //Lua指令集
 void moveInst(instruction i) {
@@ -46,7 +46,6 @@ void loadBoolInst(instruction i) {
 
 void loadKInst(instruction i) {
     struct code_format ins = ABx(i);
-    //printf("address:%p\n",ins);
     ins.a++;
     getConst(vm->state,ins.bx);
     replace(vm->state,ins.a);
@@ -345,7 +344,22 @@ void LoadProto(int32_t idx) {
         } else {
             closure->upvals[i] = vm->state->stack->lua_closure->upvals[uvidx];
         }
+        for(int j = 0;j < global_upvals_size;j++)
+            if(closure->upvals[i] == global_upvals[j])
+                goto next;
+
+        for(int j = 0;j < global_upvals_size;j++) {
+            if(NULL == global_upvals[j]) {
+                global_upvals[j] = closure->upvals[i];
+                break;
+            }
+            if(j == (global_upvals_size - 1))
+                EXPANDVALUE(global_upvals, global_upvals_size);
+        }
+    next:
+        continue;
     }
+
 }
 void closureInst(instruction i) {
     struct code_format ins = ABx(i);

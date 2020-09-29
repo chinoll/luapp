@@ -16,29 +16,31 @@
 #include "gc.h"
 #include "list.h"
 #include "hashmap.h"
-
+#include "misc.h"
 operator operators[] = {//算术运算函数
-        {iadd,fadd},
-        {isub,fsub},
-        {imul,fmul},
-        {imod,fmod},
-        {NULL,pow},
-        {NULL,fdiv},
-        {iidiv,fidiv},
-        {band,NULL},
-        {bor,NULL},
-        {bxor,NULL},
-        {shl,NULL},
-        {shr,NULL},
-        {iunm,funm},
-        {bnot,NULL}
+        {"__add",iadd,fadd},
+        {"__sub",isub,fsub},
+        {"__mul",imul,fmul},
+        {"__mod",imod,fmod},
+        {"__pow",NULL,pow},
+        {"__div",NULL,fdiv},
+        {"__iidiv",iidiv,fidiv},
+        {"__band",band,NULL},
+        {"__bor",bor,NULL},
+        {"__bxor",bxor,NULL},
+        {"__shl",shl,NULL},
+        {"__shr",shr,NULL},
+        {"__unm",iunm,funm},
+        {"__bnot",bnot,NULL}
 };
 static LuaValue * __arith(LuaValue *a,LuaValue *b,operator op);
 
-static bool __eq(LuaValue *a,LuaValue *b);
-static bool __lt(LuaValue *a,LuaValue *b);
-static bool __le(LuaValue *a,LuaValue *b);
+static bool __eq(LuaValue *a, LuaValue *b, LuaState *state);
+static bool __lt(LuaValue *a, LuaValue *b, LuaState *state);
+static bool __le(LuaValue *a, LuaValue *b, LuaState *state);
 
+LuaUpvalue **global_upvals;
+int global_upvals_size;
 LuaState * newLuaState(Prototype *prototype) {
     LuaState * state = (LuaState *)lmalloc(sizeof(LuaState));
     if(state == NULL)
@@ -213,7 +215,28 @@ void set_top(LuaState * state,int64_t idx) {
         }
     }
 }
+static LuaValue *getMetafield(LuaState *state, LuaValue *val, char *fieldName) {
+    LuaValue *mt = __getMetatable(state, val);
+    LuaTable *table = mt->data;
+    if(mt->type != LUAPP_TNIL)
+        return __getTableItem(table->metatable, newStr(fieldName));
+    return NULL;
+}
+static LuaValue *callMetamethod(LuaState *state, LuaValue *a, LuaValue *b, char *name) {
+    LuaValue *mm = getMetafield(state, a, name);
+    if(NULL == mm) {
+        mm = getMetafield(state, b, name);
+        if(NULL == mm)
+            return NULL;
+    }
 
+    checkStack(state->stack, 4);
+    push(state->stack, mm);
+    push(state->stack, a);
+    push(state->stack, b);
+    Call(state, 2, 1);
+    return pop(state->stack);
+}
 void Arith(LuaState * state,ArithOp op) {
     //执行算术和按位运算,将结果推入栈顶
     LuaValue *a,*b,*res;
@@ -222,10 +245,18 @@ void Arith(LuaState * state,ArithOp op) {
         a = pop(state->stack);
     else    //遇到单目运算符的情况
         a = b;
-    if((res = __arith(a,b,operators[op])) != NULL)
+    if((res = __arith(a,b,operators[op])) != NULL) {
         push(state->stack,res);
-    else
-        panic("arithmetic error!");
+        return;
+    }
+    else {
+        char *mm = operators[op].metamethod;
+        LuaValue *res = callMetamethod(state, a, b, mm);
+        //TODO:这里应该判断res == NULL
+        if(res->type != LUAPP_TNIL)
+            push(state->stack, res);
+        return;
+    }
 
 }
 static LuaValue * __arith(LuaValue *a,LuaValue *b,operator op) {
@@ -279,16 +310,16 @@ bool Compare(LuaState * state,int64_t idx1,int64_t idx2,CompareOp op) {
 
     switch(op) {
         case LUAPP_OPEQ:
-            return __eq(a,b);
+            return __eq(a, b, state);
         case LUAPP_OPLT:
-            return __lt(a,b);
+            return __lt(a, b, state);
         case LUAPP_OPLE:
-            return __le(a,b);
+            return __le(a, b, state);
         default:
             panic("invalid compare op!");
     }
 }
-bool __eq(LuaValue *a,LuaValue *b) {
+bool __eq(LuaValue *a, LuaValue *b, LuaState *state) {
     //比较a和b的值是否相等
     switch(a->type) {
         case LUAPP_TNIL:
@@ -325,12 +356,22 @@ bool __eq(LuaValue *a,LuaValue *b) {
             bool c = *(double *)val->data == *(double *)a->data;
             return c;
             }
+        case LUAPP_TTABLE: {
+            LuaValue *x = a->data;
+            LuaValue *y = b->data;
+            if(x != y && NULL != state) {
+                LuaValue *res = callMetamethod(state, x, y, "__eq");
+                if(NULL != res)
+                    return res->data;
+            }
+            return a == b;
+        }
         default:
             //暂时不处理其他的数据类型
             return false;
         }
     }
-bool __lt(LuaValue *a,LuaValue *b) {
+bool __lt(LuaValue *a, LuaValue *b, LuaState *state) {
     //a是否小于b
     switch(a->type) {
         case LUAPP_TSTRING: {
@@ -343,25 +384,31 @@ bool __lt(LuaValue *a,LuaValue *b) {
                 return false;
         }
         case LUAPP_TINT: {
-            if(b->type != LUAPP_TINT && b->type != LUAPP_TFLOAT)
+            if(a->type != LUAPP_TINT && a->type != LUAPP_TFLOAT)
                 return false;
-            LuaValue *val = ConvertToInt(b);
-            bool c = (int64_t)val->data < (int64_t)a->data;
+            LuaValue *val = ConvertToInt(a);
+            bool c = (int64_t)val->data < (int64_t)b->data;
             return c;
         }
         case LUAPP_TFLOAT: {
-            if(b->type != LUAPP_TINT && b->type != LUAPP_TFLOAT)
+            if(a->type != LUAPP_TINT && a->type != LUAPP_TFLOAT)
                 return false;
-            LuaValue *val = ConvertToFloat(b);
-            bool c = *(double *)val->data < *(double *)a->data;
+            LuaValue *val = ConvertToFloat(a);
+            bool c = *(double *)val->data < *(double *)b->data;
             return c;
+        }
+        case LUAPP_TTABLE: {
+            LuaValue *res = callMetamethod(state, a, b, "__lt");
+            if(NULL != res)
+                return res->data;
+            return false;
         }
         default:
             //暂时不处理其他的数据类型
             return false;
     }
 }
-bool __le(LuaValue *a,LuaValue *b) {
+bool __le(LuaValue *a, LuaValue *b, LuaState *state) {
     //a是否小于等于b
     switch(a->type) {
         case LUAPP_TSTRING: {
@@ -381,11 +428,17 @@ bool __le(LuaValue *a,LuaValue *b) {
             return c;
         }
         case LUAPP_TFLOAT: {
-            if(b->type != LUAPP_TINT && b->type != LUAPP_TFLOAT)
+            if(a->type != LUAPP_TINT && a->type != LUAPP_TFLOAT)
                 return false;
-            LuaValue *val = ConvertToFloat(b);
-            bool c = *(double *)val->data <= *(double *)a->data;
+            LuaValue *val = ConvertToFloat(a);
+            bool c = *(double *)val->data <= *(double *)b->data;
             return c;
+        }
+        case LUAPP_TTABLE: {
+            LuaValue *res = callMetamethod(state, a, b, "__le");
+            if(NULL != res)
+                return res->data;
+            return false;
         }
         default:
             //暂时不处理其他的数据类型
@@ -396,14 +449,16 @@ bool __le(LuaValue *a,LuaValue *b) {
 void Len(LuaState * state,int64_t idx) {
     //获取指定索引处值的长度,将长度推入栈顶
     LuaValue *val = get(state->stack,idx);
-    LuaValue *res = NULL;
+    LuaValue *res = callMetamethod(state, val, val, "__len");
+    if(res != NULL)
+        goto end;
     if(val->type == LUAPP_TSTRING)
         res = newInt(strlen(val->data));
     else if(val->type == LUAPP_TTABLE)
         res = newInt(val->len);
-    else
+    else if(NULL == res)
         panic("length error!");
-
+end:
     push(state->stack,res);
 }
 
@@ -419,11 +474,10 @@ void Concat(LuaState * state,int64_t n,int32_t b) {
                 char *str1,*str2;
                 str1 = to_string(state,-2);
                 str2 = to_string(state,-1);
-                char * str = lmalloc(sizeof(char)*strlen(str1) + sizeof(char)*strlen(str2) + 1);
+                char * str = lmalloc(sizeof(char) * (strlen(str1)+strlen(str2)+1));
                 if(str == NULL)
                     panic(OOM);
 
-                //lfree(str2);
                 strcpy(str,str1);
                 strcpy(str + strlen(str1),str2);
 
@@ -433,6 +487,14 @@ void Concat(LuaState * state,int64_t n,int32_t b) {
                 LuaValue * val1 = newStr(str);
                 push(state->stack,val1);
                 lfree(str);
+                continue;
+            }
+
+            LuaValue *b = pop(state->stack);
+            LuaValue *a = pop(state->stack);
+            LuaValue *res = callMetamethod(state, a, b, "__concat");
+            if(NULL != res) {
+                push(state->stack, res);
                 continue;
             }
             panic("concatenation error!");
@@ -449,13 +511,35 @@ void CreateTable(LuaState *state,uint64_t nArr,uint64_t nRec) {
     push(state->stack,val);
 }
 
-int __getTable(LuaStack *stack, LuaValue *table, LuaValue *key) {
+int __getTable(LuaState *state, LuaValue *table, LuaValue *key, bool raw) {
     //从表中获取一个值，并将值推入栈中
-    if(typeOf(table) != LUAPP_TTABLE)
-        panic("Not a table!");
-    LuaValue *res = getTableItem(table,key);
-    push(stack,res);
-    return typeOf(res);
+
+    if(typeOf(table) == LUAPP_TTABLE) {
+        LuaValue *v = getTableItem(table,key);
+        if(raw || v->type != LUAPP_TNIL || !hasMetafield(table->data, "__index")) {
+            push(state->stack, v);
+            return typeOf(v);
+        }
+    }
+    if(!raw) {
+        LuaValue *mf = getMetafield(state, table, "__index");
+        if(mf != NULL) {
+            switch (mf->type)
+            {
+            case LUAPP_TTABLE:
+            return __getTable(state, mf->data, key, false);
+            
+            case LUAPP_TCLOSURE:
+                push(state->stack, mf);
+                push(state->stack, table);
+                push(state->stack, key);
+                Call(state, 2, 1);
+                return typeOf(get(state->stack,-1));
+            }
+        }
+
+    }
+    panic("index error!");
 }
 
 int GetTable(LuaState *state, const int64_t idx) {
@@ -464,7 +548,7 @@ int GetTable(LuaState *state, const int64_t idx) {
     LuaValue *t = get(state->stack,idx);
     LuaValue *k = pop(state->stack);
 
-    return __getTable(state->stack, t, k);
+    return __getTable(state, t, k, false);
 }
 
 int GetField(LuaState *state, const int64_t idx, char * k) {
@@ -472,22 +556,43 @@ int GetField(LuaState *state, const int64_t idx, char * k) {
     LuaValue *t = get(state->stack, idx);
     LuaValue *v = newStr(k);
 
-    return __getTable(state->stack,t,v);
+    return __getTable(state, t, v, false);
 }
 
 int GetI(LuaState *state,const int64_t idx,const int64_t i) {
     //从表中获取一个值
     LuaValue *t = get(state->stack,idx);
     LuaValue *v = newInt(i);
-    return __getTable(state->stack,t,v);
+    return __getTable(state, t, v, false);
 }
-void __setTable(LuaValue *t,LuaValue *k,LuaValue *v) {
+void __setTable(LuaValue *t, LuaValue *k, LuaValue *v, bool raw) {
     //修改/添加/删除表中的值
     if (typeOf(t) == LUAPP_TTABLE) {
-        putItemTable(t,k,v);
-        return;
+        LuaValue *temp = getTableItem(t, k);
+        if(raw || temp->type != LUAPP_TNIL || !hasMetafield(t->data, "__newindex")) {
+            putItemTable(t,k,v);
+            return;
+        }
     }
-    panic("Not a table!");
+
+    if(!raw) {
+        LuaValue *mf = getMetafield(vm->state, t, "__newindex");
+        if(mf != NULL) {
+            switch (mf->type) {
+            case LUAPP_TTABLE:
+                __setTable(mf, k, v, false);
+                return;
+            case LUAPP_TCLOSURE:
+                push(vm->state->stack, mf);
+                push(vm->state->stack, t);
+                push(vm->state->stack, k);
+                push(vm->state->stack, v);
+                Call(vm->state, 3, 0);
+                return;
+            }
+        }
+    }
+    panic("index error!");
 }
 
 void SetTable(LuaState *state,const int64_t idx) {
@@ -495,7 +600,7 @@ void SetTable(LuaState *state,const int64_t idx) {
     LuaValue *t = get(state->stack,idx);
     LuaValue *v = pop(state->stack);
     LuaValue *k = pop(state->stack);
-    __setTable(t,k,v);
+    __setTable(t, k, v, false);
 }
 
 void SetI(LuaState *state, const int64_t idx, int64_t i) {
@@ -503,7 +608,7 @@ void SetI(LuaState *state, const int64_t idx, int64_t i) {
     LuaValue *t = get(state->stack,idx);
     LuaValue *v = pop(state->stack);
     LuaValue *k = newInt(i);
-    __setTable(t,k,v);
+    __setTable(t, k, v, false);
 }
 
 void pushLuaStack(LuaState *state,LuaStack *stack) {
@@ -521,11 +626,13 @@ void runLuaClosure(LuaState *state) {
     while(true) {
         uint64_t pc = getPC(state);
         instruction inst = fetch(state);
-        ExecuteInstruction(vm, inst);
-        if(debug_level > 1) {
+
+        if(debug_level > 0) {
             printf("[%ld] %s ", pc + 1, codes[get_opcode(inst)].name);
             printStack(state);
         }
+        ExecuteInstruction(vm, inst);
+
         //if(period < getMillisecond())
             GC(state->stack);   //进行垃圾回收
         if(get_opcode(inst) == OP_RETURN)
@@ -539,12 +646,14 @@ void callLuaRunClosure(LuaState *state,int64_t nargs,int64_t nresults,Closure *c
     LuaStack *newStack = newLuaStack(nregs + DefaultStackSize,state);
     newStack->lua_closure = closure;
 
-    LuaValue **funcAndarg = popN(state->stack,nparams + 1);
-    pushN(newStack,funcAndarg + 1,nparams - 1,nparams);
+    LuaValue **funcAndarg = popN(state->stack,nargs + 1);
+    int flen;
+    for(flen = 0;funcAndarg[flen+1] != NULL;flen++);
+    pushN(newStack,funcAndarg + 1,flen,nparams);
 
     if(nargs > nparams && (closure->proto->is_vararg == 1)){
-            newStack->varargs = funcAndarg + 1;
-            newStack->varargs_len = 0;
+            newStack->varargs = funcAndarg + nparams + 1;
+            newStack->varargs_len = nargs - nparams;
     }
     if(newStack->varargs_len < 0)
         newStack->varargs_len = 0;
@@ -571,21 +680,41 @@ int64_t Load(FILE *chunk,char *mode) {
     push(vm->state->stack,newLuaValue(LUAPP_TCLOSURE, c, sizeof(Closure)));
     if(proto->upvalues_len > 0) {   //设置ENV
         LuaValue *env = getTableItem(vm->state->registery, newInt(LUAPP_RIDX_GLOBALS));
-        c->upvals[0] = malloc(sizeof(LuaUpvalue));
+        c->upvals[0] = lmalloc(sizeof(LuaUpvalue));
+
+        for(int i = 0;i < global_upvals_size;i++) {
+            if(NULL == global_upvals[i]) {
+                global_upvals[i] = c->upvals[0];
+                break;
+            }
+            if(i == (global_upvals_size - 1))
+                EXPANDVALUE(global_upvals, global_upvals_size);
+        }
+
         if(NULL == c->upvals[0])
             panic(OOM);
         c->upvals[0]->val = env;
     }
     return 0;
 }
-
 void Call(LuaState *state,int64_t nargs,int64_t nresults) {
     LuaValue *val = get(state->stack,-(nargs + 1));
     val->end_clean = true;
+
+    if(val != NULL && val->type != LUAPP_TCLOSURE) {
+        LuaValue *mf = getMetafield(state, val, "__call");
+        if(NULL != mf && mf->type == LUAPP_TCLOSURE) {
+            val = mf;
+            push(state->stack, val);
+            insert_value(state, -(nargs + 2));
+            nargs++;
+        } 
+    }
+
     if(val != NULL && val->type == LUAPP_TCLOSURE) {
         Closure *closure = (Closure *)val->data;
         if(closure->proto != NULL) {
-            //printf("call %s<%d,%d>\n",closure->proto->source,closure->proto->line_def,closure->proto->last_line_def);
+            printf("call %s<%d,%d>\n",closure->proto->source,closure->proto->line_def,closure->proto->last_line_def);
             callLuaRunClosure(state,nargs,nresults,closure);
         }
         else
@@ -655,18 +784,14 @@ void pushGlobalTable(LuaState *state) {
 
 int GetGlobal(LuaState *state, char *name) {
     LuaValue *val = getTableItem(state->registery, newInt(LUAPP_RIDX_GLOBALS));
-    return __getTable(state->stack,val,newStr(name));
+    return __getTable(state, val, newStr(name), false);
 }
 
 void SetGlobal(LuaState *state, char *name) {
     LuaValue *t = getTableItem(state->registery, newInt(LUAPP_RIDX_GLOBALS));
     LuaValue *v = pop(state->stack);
-    v->stack_count++;
     LuaValue *k = newStr(name);
-    k->end_clean = true;
-    LuaValue *tmp = getTableItem(t,k);
-    tmp->stack_count--;
-    __setTable(t, k, v);
+    __setTable(t, k, v, false);
 }
 
 void register_function(LuaState *state, char *name, CFunc f) {
@@ -744,17 +869,64 @@ void CloseUpvalues(LuaState *state, int a) {
         if(i >= a - 1) {
             LuaTable *table = state->stack->openuvs->data;
             if(NULL != table->map) {
-                KeySet *set = getAllKey(table->map);
-                list *pos;
-                list *n = &set->list;
-                list_for_each(pos,&set->list) {
-                    KeySet *Set = container_of(n, KeySet, list);
-                    deleteItem(state->stack->openuvs, Set->key);
-                    list_del(&Set->list);
-                    lfree(Set);
-                    n = pos;
-                }
+                void **keyset = getAllKey(table->map);
+                for(i = 0;keyset[i] != NULL;i++)
+                    deleteItem(state->stack->openuvs, keyset[i]);
+                lfree(keyset);
             }
         }
     }
+}
+
+#define DEFAULT_KEY_LEN 6
+void __setMetatable(LuaState *state, LuaValue *val, LuaTable *mt) {
+    if(val->type == LUAPP_TTABLE) {
+        LuaTable *t = val->data;
+        t->metatable = mt;
+        return;
+    }
+
+    char *key = lmalloc(sizeof(char *) * DEFAULT_KEY_LEN);    //_MTxx\0
+    if(NULL == key)
+        panic(OOM);
+    
+    snprintf(key, DEFAULT_KEY_LEN, "_MT%d", typeOf(val));
+    putItemTable(state->registery, newStr(key),newLuaValue(LUAPP_TTABLE, mt, sizeof(LuaValue)));
+}
+
+LuaValue *__getMetatable(LuaState *state, LuaValue *val) {
+    if(val->type == LUAPP_TTABLE)
+        return val;
+
+    char *key = lmalloc(sizeof(char *) * DEFAULT_KEY_LEN);
+    if(NULL == key)
+        panic(OOM);
+    snprintf(key, DEFAULT_KEY_LEN, "_MT%d", typeOf(val));
+    LuaValue *mt = getTableItem(state->registery, newStr(key));
+    lfree(key);
+    return mt;
+}
+
+bool GetMetatable(LuaState *state, int idx) {
+    LuaValue *val = get(state->stack, idx);
+
+    LuaValue *mt = __getMetatable(state, val);
+    if(mt->type != LUAPP_TNIL) {
+        push(state->stack, mt);
+        return true;
+    } else
+        return false;
+    
+}
+
+void SetMetatable(LuaState *state, int idx) {
+    LuaValue *val = get(state->stack, idx);
+    LuaValue *mtVal = pop(state->stack);
+    if(mtVal->type == LUAPP_TNIL)
+        __setMetatable(state, val, NULL);
+    else if(mtVal->type == LUAPP_TTABLE)
+        __setMetatable(state, val, mtVal->data);
+    else
+        panic("table expected!");
+
 }
