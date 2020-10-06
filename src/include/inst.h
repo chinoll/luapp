@@ -67,5 +67,6 @@ void getUpvalInst(instruction i);
 void setUpvalInst(instruction i);
 void setTabUpInst(instruction i);
 void JmpInst(instruction i);
-
+void tForCallInst(instruction i);
+void tForLoopInst(instruction i);
 #endif //LUAPP_INST_H

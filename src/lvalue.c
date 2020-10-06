@@ -133,6 +133,7 @@ void addRef(LuaValue *val,LuaValue *ref) {
                 return;
     }
 
+addref:
     for(uint64_t i = 0;i <ref->ref_list_len;i++) {
         //添加引用
         if(ref->ref_list[i] == NULL) {
@@ -141,8 +142,11 @@ void addRef(LuaValue *val,LuaValue *ref) {
             break;
         }
     }
-    if(flag)    //扩展引用数组
+    if(flag){    //扩展引用数组
         __expanRefList(ref);
+        goto addref;
+    }
+        
 }
 /*
  * 从ref中删除对val的引用

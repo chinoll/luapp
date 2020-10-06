@@ -415,3 +415,22 @@ void setTabUpInst(instruction i) {
     val->end_clean = true;
     SetTable(vm->state, LuaUpvalueIndex(ins.a));
 }
+
+void tForCallInst(instruction i) {
+    struct code_format ins = ABC(i);
+    ins.a++;
+
+    __pushFuncAndArgs(ins.a, 3);
+    Call(vm->state, 2, ins.c);
+    __popResults(ins.a + 3, ins.c + 1);
+}
+
+void tForLoopInst(instruction i) {
+    struct code_format ins = AsBx(i);
+    ins.a++;
+
+    if(!isNil(vm->state, ins.a + 1)) {
+        copy_value(vm->state, ins.a + 1, ins.a);
+        addPC(vm->state, ins.bx);
+    }
+}

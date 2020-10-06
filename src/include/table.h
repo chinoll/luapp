@@ -16,6 +16,8 @@ typedef struct __luatable {
     uint64_t arr_len;   //arr字段的长度
     uint64_t free_arr_count;  //空闲arr字段个数
     HashMap *map;
+    HashMap *keys;
+    bool changed;
 } LuaTable;
 LuaTable *newLuaTable(uint64_t nArr, uint64_t nRec);
 
@@ -28,4 +30,6 @@ uint64_t tableLen(LuaValue *val);
 void freeLuaTable(void *ptr);
 LuaValue *__getTableItem(LuaTable *table,LuaValue *key);
 bool hasMetafield(LuaTable *table, const char *str);
+LuaValue *nextKey(LuaValue *table, LuaValue *key);
+void initKeys(LuaValue *ltable);
 #endif //LUAPP_TABLE_H

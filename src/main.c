@@ -67,6 +67,7 @@ int print(LuaState *ls) {
             printf("%f",to_number(ls,j));
         else
             printf(type_name(type(ls,j)));
+        printf("\t");
     }
     printf("\n");
     return 0;
@@ -82,6 +83,40 @@ int setMetatable(LuaState *state) {
     SetMetatable(state, 1);
     return 1;
 }
+
+int __iPairsAux(LuaState *ls) {
+    int64_t i = to_int(ls, 2) + 1;
+    push_value(ls, i);
+
+    if(GetI(ls, 1, i) == LUAPP_TNIL)
+        return 1;
+    else
+        return 2;
+    
+}
+int ipairs(LuaState *ls) {
+    PushCFunc(vm->state, __iPairsAux);
+    push_value(ls, 1);
+    push_int(ls, 0);
+    return 3;
+}
+int next(LuaState *ls) {
+    set_top(ls, 2);
+    if(Next(ls, 1)) {
+        return 2;
+    } else {
+        push_nil(ls);
+        return 1;
+    }
+}
+
+int pairs(LuaState *ls) {
+    PushCFunc(ls, next);
+    push_value(ls, 1);
+    push_nil(ls);
+    return 3;
+}
+
 int main(int argc,char *argv[]) {
     if(argc < 2)
         return 1;
@@ -95,10 +130,12 @@ int main(int argc,char *argv[]) {
     period = getMillisecond() + 1000;
     Load(fp,"b");
     
-    register_function(vm->state,"print",print);
+    register_function(vm->state,"print", print);
     register_function(vm->state, "getmetatable", getMetatable);
     register_function(vm->state, "setmetatable", setMetatable);
-
+    register_function(vm->state, "ipairs", ipairs);
+    register_function(vm->state, "next", next);
+    register_function(vm->state, "pairs", pairs);
     Call(vm->state,0,0);
     fclose(fp);
     GCall();

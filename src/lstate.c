@@ -218,7 +218,7 @@ void set_top(LuaState * state,int64_t idx) {
 static LuaValue *getMetafield(LuaState *state, LuaValue *val, char *fieldName) {
     LuaValue *mt = __getMetatable(state, val);
     LuaTable *table = mt->data;
-    if(mt->type != LUAPP_TNIL)
+    if(mt->type != LUAPP_TNIL && table->metatable != NULL)
         return __getTableItem(table->metatable, newStr(fieldName));
     return NULL;
 }
@@ -569,7 +569,7 @@ void __setTable(LuaValue *t, LuaValue *k, LuaValue *v, bool raw) {
     //修改/添加/删除表中的值
     if (typeOf(t) == LUAPP_TTABLE) {
         LuaValue *temp = getTableItem(t, k);
-        if(raw || temp->type != LUAPP_TNIL || !hasMetafield(t->data, "__newindex")) {
+        if(raw || temp || !hasMetafield(t->data, "__newindex")) {
             putItemTable(t,k,v);
             return;
         }
@@ -755,9 +755,13 @@ CFunc ToCFunc(LuaState *state, int idx) {
 void callCClosure(LuaState *state, int nArgs, int nResults, Closure *c) {
     LuaStack *newStack = newLuaStack(nArgs + 20,state);
     newStack->lua_closure = c;
-
-    LuaValue **val = popN(state->stack, nArgs);
-    pushN(newStack, val, nArgs, nArgs);
+    LuaValue **val;
+    if(nArgs > 0) {
+        val = popN(state->stack, nArgs);
+        int ilen;
+        for(ilen = 0;val[ilen] != NULL;ilen++);
+        pushN(newStack, val, ilen, nArgs);
+    }
     pop(state->stack);
 
     pushLuaStack(state,newStack);
@@ -765,13 +769,15 @@ void callCClosure(LuaState *state, int nArgs, int nResults, Closure *c) {
     popLuaStack(state);
     lfree(val);
     if(nResults != 0) {
-        LuaValue **res = popN(state->stack,r);
+        LuaValue **res = popN(newStack,r);
         int i;
-        for(i = 0;i < r;i++)
+        /*for(i = 0;i < r;i++)
             if(res[i] == NULL)
-                break;
-        checkStack(state->stack,i);
-        pushN(state->stack,res,i,nResults);
+                break;*/
+        for(i = 0;res[i] != NULL;i++);
+
+        checkStack(state->stack, nResults);
+        pushN(state->stack, res, i, nResults);
         lfree(res);
     }
 }
@@ -929,4 +935,21 @@ void SetMetatable(LuaState *state, int idx) {
     else
         panic("table expected!");
 
+}
+
+bool Next(LuaState *state, int idx) {
+    LuaValue *val = get(state->stack, idx);
+
+    if(val->type == LUAPP_TTABLE) {
+        LuaValue *key = pop(state->stack);
+
+        LuaValue *nextkey = nextKey(val, key);
+        if(nextkey != NULL && nextkey->type != LUAPP_TNIL) {
+            push(state->stack, nextkey);
+            push(state->stack, getTableItem(val, nextkey));
+            return true;
+        }
+        return false;
+    }
+    panic("table expected!");
 }

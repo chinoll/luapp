@@ -4,8 +4,6 @@
 #include "lerror.h"
 void *lmalloc(size_t size) {
     void *ptr = malloc(size);
-    if(ptr == (void *)0x801f807)
-        printf("e");
     return ptr;
 }
 

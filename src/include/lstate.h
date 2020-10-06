@@ -93,6 +93,7 @@ void CreateTable(LuaState *state,uint64_t nArr,uint64_t nRec);
 int __getTable(LuaState *state, LuaValue *table, LuaValue *key, bool raw);
 int GetTable(LuaState *state,int64_t idx);
 int GetField(LuaState *state, int64_t idx,char *k);
+int GetI(LuaState *state,const int64_t idx,const int64_t i);
 void __setTable(LuaValue *t, LuaValue *k, LuaValue *v, bool raw);
 void SetTable(LuaState *state, int64_t idx);
 void SetI(LuaState *state, int64_t idx, int64_t i);
@@ -120,4 +121,6 @@ void __setMetatable(LuaState *state, LuaValue *val, LuaTable *mt);
 LuaValue *__getMetatable(LuaState *state, LuaValue *val);
 bool GetMetatable(LuaState *state, int idx);
 void SetMetatable(LuaState *state, int idx);
+
+bool Next(LuaState *state, int idx);
 #endif //LUAPP_LSTATE_H

@@ -72,8 +72,9 @@ void push (LuaStack * stack,LuaValue *val) {
     
     stack->slots[stack->top] = val;
     stack->top++;
-    if(val != NULL)
-    	val->stack_count++;
+    if(val == NULL)
+        printf("Error!");
+    val->stack_count++;
 }
 
 LuaValue * pop(LuaStack *stack) {
@@ -121,7 +122,7 @@ LuaValue *  get(LuaStack * stack,int64_t idx) {
         Closure *c = stack->lua_closure;
 
         if(NULL == c || uvidx >= c->upvals_len)
-            return NULL;
+            return newNil();
         return c->upvals[uvidx]->val;
     }
     uint64_t absidx = absIndex(stack,idx);

@@ -9,7 +9,6 @@
 #include "lvalue.h"
 #include "consts.h"
 #include "memory.h"
-
 LuaTable *newLuaTable(uint64_t nArr,uint64_t nRec) {
     //分配并初始化一个table
     LuaTable *table = lmalloc(sizeof(LuaTable));
@@ -55,8 +54,8 @@ LuaValue *__getTableItem(LuaTable *table,LuaValue *key) {
      * 如果key的类型是数字，并且值小于数组长度时从数组中获取LuaValue实例，
      * 否则从散列表中查找
      */
-    if(key->type == LUAPP_TNIL)
-        return newLuaValue(LUAPP_TNIL,NULL,0);
+    /*if(key->type == LUAPP_TNIL)
+        return newLuaValue(LUAPP_TNIL,NULL,0);*/
     if(key->type == LUAPP_TINT && (uint64_t)key->data < table->arr_len)
         return __getArrayItem(table,key);
     else
@@ -126,10 +125,10 @@ static int __putItemToTable(LuaValue *table,LuaValue *key,LuaValue *value) {
      * 如果key的类型时数字并且值小于数组长度时，将值放入数组，
      * 否则将值反如散列表中
      */
-    if(key->type == LUAPP_TNIL)
+    /*if(key->type == LUAPP_TNIL)
         panic("Key can't Nil");
     if(value->type == LUAPP_TNIL)
-        return -1;
+        return -1;*/
     if(key->type == LUAPP_TINT && (uint64_t)key->data < ((LuaTable *)table->data)->arr_len)
         return __putItemToArray(table->data,key,value);
     else {
@@ -211,9 +210,55 @@ void freeLuaTable(void *ptr) {
     	lfree(table->arr);
     if(table->map != NULL)
     	freeHashMap(table->map);
+    if(table->keys != NULL)
+        freeHashMap(table->keys);
     lfree(table);
 }
 
 bool hasMetafield(LuaTable *table, const char *str) {
     return table->metatable != NULL && __getTableItem(table->metatable, newStr(str));
+}
+
+LuaValue *nextKey(LuaValue *table, LuaValue *key) {
+    LuaTable *ltable = table->data;
+    if(NULL == key || NULL == ltable->keys) {
+        initKeys(table);
+        ltable->changed = false;
+        key = newNil();
+    }
+    return  __getHashMapItem(ltable->keys,key->data_hashcode,key,key->len,key->eqfunc);
+    
+}
+
+void initKeys(LuaValue *ltable) {
+    LuaTable *table = ltable->data;
+    table->keys = newHashMap();
+    
+    LuaValue *key = newNil();
+    if(table->arr != NULL) {
+        for(uint64_t i = 0;i < table->arr_len; i++) {
+            if(table->arr[i] != NULL) {
+                LuaValue *k = newInt(i + 1);
+                __putItemToHashMap(table->keys, key->data_hashcode, key, sizeof(LuaValue), k, key->eqfunc);
+                //putItemToHashMap(table->keys, key, sizeof(LuaValue), newInt(i + 1));
+                addRef(k,ltable);
+                key = k;
+            }
+        }
+    }
+
+    HashMapEntry **entrys = getAllHashMapEntry(table->map);
+
+    for(int i = 0;entrys[i] != NULL;i++) {
+        LuaValue *k = entrys[i]->key;
+        LuaValue *v = entrys[i]->value;
+
+        if(v->type != LUAPP_TNIL) {
+            __putItemToHashMap(table->keys, key->data_hashcode, key, sizeof(LuaValue), k, k->eqfunc);
+            //putItemToHashMap(table->keys, key, sizeof(LuaValue), k);
+            addRef(k,ltable);
+            key = k;
+        }
+    }
+    lfree(entrys);
 }

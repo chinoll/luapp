@@ -14,10 +14,7 @@ typedef struct __hashmapentry {
     list list;
     list nextkey;
 } HashMapEntry;
-/*typedef struct __hashmapkey {
-        void *key;
-        list list;
-} KeySet;*/
+
 typedef struct hashmap {
     list *list;
     list keyset;
@@ -34,7 +31,7 @@ void *__getHashMapItem(HashMap *map, uint64_t hashcode, void *key, uint64_t len,
 void *getHashMapItem(HashMap *map, void *key, uint64_t len, compareFunc equalFunc);
 
 HashMapEntry * __putItemToHashMap(HashMap *map, uint64_t hashcode, void *key,uint64_t len, void *value,compareFunc eq);
-void putItemToHashMap(HashMap *map, void *key, uint64_t len, void *value);
+//void putItemToHashMap(HashMap *map, void *key, uint64_t len, void *value);
 
 int expandHashMap(HashMap *map);
 
