@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stdbool.h>
 #include <math.h>
+#include <signal.h>
+#include <unistd.h>
 #include "lstate.h"
 #include "lerror.h"
 #include "lstack.h"
@@ -359,10 +361,14 @@ bool __eq(LuaValue *a, LuaValue *b, LuaState *state) {
         case LUAPP_TTABLE: {
             LuaValue *x = a->data;
             LuaValue *y = b->data;
-            if(x != y && NULL != state) {
-                LuaValue *res = callMetamethod(state, x, y, "__eq");
-                if(NULL != res)
-                    return res->data;
+            if(b->type != LUAPP_TTABLE) {
+                builtinRaiseError(vm->state, "Arithmetic error!");
+            } else {
+                if(x != y && NULL != state) {
+                    LuaValue *res = callMetamethod(state, x, y, "__eq");
+                    if(NULL != res)
+                        return res->data;
+                }
             }
             return a == b;
         }
@@ -632,9 +638,12 @@ void runLuaClosure(LuaState *state) {
             printStack(state);
         }
         ExecuteInstruction(vm, inst);
-
         //if(period < getMillisecond())
             GC(state->stack);   //进行垃圾回收
+
+        if(vm->state->err != NULL)
+            break;
+
         if(get_opcode(inst) == OP_RETURN)
             break;
     }
@@ -714,7 +723,7 @@ void Call(LuaState *state,int64_t nargs,int64_t nresults) {
     if(val != NULL && val->type == LUAPP_TCLOSURE) {
         Closure *closure = (Closure *)val->data;
         if(closure->proto != NULL) {
-            printf("call %s<%d,%d>\n",closure->proto->source,closure->proto->line_def,closure->proto->last_line_def);
+            //printf("call %s<%d,%d>\n",closure->proto->source,closure->proto->line_def,closure->proto->last_line_def);
             callLuaRunClosure(state,nargs,nresults,closure);
         }
         else
@@ -914,6 +923,7 @@ LuaValue *__getMetatable(LuaState *state, LuaValue *val) {
 }
 
 bool GetMetatable(LuaState *state, int idx) {
+
     LuaValue *val = get(state->stack, idx);
 
     LuaValue *mt = __getMetatable(state, val);
@@ -952,4 +962,33 @@ bool Next(LuaState *state, int idx) {
         return false;
     }
     panic("table expected!");
+}
+
+void raiseError(LuaState *state) {
+    LuaValue *err = pop(state->stack);
+    //int pid = getpid();
+    state->err = err;
+    err->end_clean = true;
+    //kill(0,SIGUSR1);  //抛出错误
+}
+
+int PCall(LuaState *state, int nArgs, int nResults, int msgh) {
+    LuaStack *caller = state->stack;
+    LuaStatus status = LUAPP_ERRRUN;
+
+    state->use_pcall = true;
+    state->caller = caller;
+
+    Call(state, nArgs, nResults);
+    if(vm->state->err != NULL) {
+        if(vm->state->caller != vm->state->stack)
+            popLuaStack(vm->state);
+        push(vm->state->stack, vm->state->err);
+    } else {
+        status = LUAPP_OK;
+    }
+    state->caller = NULL;
+    state->err = NULL;
+
+    return status;
 }

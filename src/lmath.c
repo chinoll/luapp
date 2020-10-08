@@ -6,6 +6,8 @@
 #include "lstack.h"
 #include "consts.h"
 #include "convert.h"
+#include "lstate.h"
+#include "lvm.h"
 static inline int64_t ShiftRight(int64_t a,int64_t n);
 static inline int64_t ShiftLeft(int64_t a,int64_t n);
 
@@ -30,6 +32,8 @@ static inline int64_t IFloorDiv(int64_t a,int64_t b) {
         return a / b - 1;
 }
 static inline double FFloorDiv(double a,double b) {
+    if(b == 0)
+        return INFINITY;
     return floor(a / b);
 }
 
@@ -55,10 +59,14 @@ double fmul(double a,double b) {
 }
 
 int64_t imod(int64_t a,int64_t b) {
+    if(b == 0)
+        builtinRaiseError(vm->state, "Div by zero");
     return a % b;
 }
 
 double fdiv(double a,double b) {
+    if(b == 0)
+        return INFINITY;
     return a / b;
 }
 int64_t iidiv(int64_t a,int64_t b) {

@@ -22,6 +22,9 @@ typedef struct __luatable LuaTable;
 typedef struct __lua_state {
     LuaStack * stack;
     LuaValue * registery;
+    LuaStack *caller;
+    bool use_pcall; //是否使用pcall处理错误
+    LuaValue *err;
 } LuaState;
 
 
@@ -30,6 +33,16 @@ typedef struct __operator {
     int64_t (*intFunc)(int64_t,int64_t);
     double (*floatFunc)(double,double);
 } operator;
+
+typedef enum __lua_status {
+    LUAPP_OK,
+    LUAPP_YIELD,
+    LUAPP_ERRRUN,
+    LUAPP_ERRSYNTAX,
+    LUAPP_ERRGCMM,
+    LUAPP_ERRERR,
+    LUAPP_ERRFILE
+} LuaStatus;
 
 LuaState * newLuaState(Prototype *prototype);
 void freeLuaState(LuaState * state);
@@ -123,4 +136,13 @@ bool GetMetatable(LuaState *state, int idx);
 void SetMetatable(LuaState *state, int idx);
 
 bool Next(LuaState *state, int idx);
+
+void raiseError(LuaState *state);
+int PCall(LuaState *state, int nArgs, int nResults, int msgh);
+void popLuaStack(LuaState *state);
+#define builtinRaiseError(state,str) \
+{   \
+    push_string(state,str); \
+    raiseError(state);  \
+}
 #endif //LUAPP_LSTATE_H

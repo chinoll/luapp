@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <xxhash.h>
+#include <signal.h>
 #include "lbinchunk.h"
 #include "lerror.h"
 #include "opcode.h"
@@ -117,6 +118,18 @@ int pairs(LuaState *ls) {
     return 3;
 }
 
+int error(LuaState *ls) {
+    raiseError(ls);
+    return 0;
+}
+int pCall(LuaState *ls) {
+    int nargs = (int)get_top(ls) - 1;
+    int status = PCall(ls, nargs, -1, 0);
+    push_bool(ls, status == LUAPP_OK);
+    insert_value(ls, 1);
+    return (int)get_top(ls);
+}
+
 int main(int argc,char *argv[]) {
     if(argc < 2)
         return 1;
@@ -136,6 +149,10 @@ int main(int argc,char *argv[]) {
     register_function(vm->state, "ipairs", ipairs);
     register_function(vm->state, "next", next);
     register_function(vm->state, "pairs", pairs);
+    register_function(vm->state, "error", error);
+    register_function(vm->state, "pcall", pCall);    
+    //signal(SIGUSR1, processError);
+
     Call(vm->state,0,0);
     fclose(fp);
     GCall();

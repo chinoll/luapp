@@ -281,7 +281,8 @@ void callInst(instruction i) {
     ins.a++;
     int32_t nargs = __pushFuncAndArgs(ins.a,ins.b);
     Call(vm->state,nargs,ins.c - 1);
-    __popResults(ins.a,ins.c);
+    if(NULL == vm->state->err)
+        __popResults(ins.a,ins.c);
     
 }
 
@@ -306,7 +307,8 @@ void tailcallInst(instruction i) {
 
     int32_t nargs = __pushFuncAndArgs(ins.a,ins.b);
     Call(vm->state,nargs, ins.c - 1);
-    __popResults(ins.a,ins.c);
+    if(NULL == vm->state->err)
+        __popResults(ins.a,ins.c);
 }
 
 void selfInst(instruction i) {
